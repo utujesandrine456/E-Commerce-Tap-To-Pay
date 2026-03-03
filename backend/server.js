@@ -243,7 +243,6 @@ mqttClient.on('connect', () => {
 });
 
 mqttClient.on('message', (topic, message) => {
-  console.log(`Received message on ${topic}: ${message.toString()}`);
   try {
     const payload = JSON.parse(message.toString());
 
@@ -273,7 +272,6 @@ app.post('/auth/login', async (req, res) => {
 
   try {
     const searchTerm = username.toLowerCase().trim();
-    console.log(`🔍 Login attempt with: ${searchTerm}`);
     
     // Try to find user by username or email
     // Build query conditions that handle empty emails
@@ -288,22 +286,14 @@ app.post('/auth/login', async (req, res) => {
       query.$or.push({ email: searchTerm });
     }
     
-    console.log(`� Search query:`, JSON.stringify(query));
-    
     const user = await User.findOne(query);
     
     if (!user) {
-      console.log(`❌ Login failed: User not found for username/email: ${searchTerm}`);
       return res.status(401).json({ error: 'Invalid username/email or password' });
     }
 
-    console.log(`🔍 Found user: ${user.username}, email: ${user.email || '(no email)'}`);
-    console.log(`📝 Password set flag: ${user.passwordSet}`);
-    console.log(`🔐 Password hash exists: ${!!user.password}`);
-
     // Check if password has been set
     if (!user.passwordSet || !user.password) {
-      console.log(`❌ Login failed: Password not set for user ${user.username}`);
       return res.status(403).json({ 
         error: 'Password not set. Please use your setup link to set your password.',
         needsSetup: true,
@@ -312,10 +302,8 @@ app.post('/auth/login', async (req, res) => {
     }
 
     const isValid = await verifyPassword(password, user.password);
-    console.log(`🔑 Password verification result: ${isValid}`);
     
     if (!isValid) {
-      console.log(`❌ Login failed: Invalid password for user ${user.username}`);
       return res.status(401).json({ error: 'Invalid username/email or password' });
     }
 
@@ -483,8 +471,6 @@ app.post('/auth/register', authenticateToken, requireRole('agent'), async (req, 
       // Continue even if email fails - return the link
     }
 
-    console.log(`\n📧 SETUP LINK for ${fullName} (${email}):\n${setupUrl}\n`);
-
     res.json({ 
       success: true, 
       message: `Salesperson ${fullName} created. Setup email sent to ${email}.`,
@@ -500,34 +486,22 @@ app.post('/auth/register', authenticateToken, requireRole('agent'), async (req, 
 
 // Setup password (salesperson first login via token)
 app.post('/auth/setup-password', async (req, res) => {
-  console.log(`\n🔐 ===== SETUP PASSWORD ENDPOINT CALLED =====`);
-  console.log(`📝 Request body:`, req.body);
-  
   const { token, password } = req.body;
 
-  console.log(`📝 Token received: ${token ? 'YES (' + token.substring(0, 20) + '...)' : 'NO'}`);
-  console.log(`📝 Password received: ${password ? 'YES (length: ' + password.length + ')' : 'NO'}`);
-
   if (!token || !password) {
-    console.log(`❌ Missing required fields`);
     return res.status(400).json({ error: 'Token and password are required' });
   }
 
   if (password.length < 6) {
-    console.log(`❌ Password too short: ${password.length} characters`);
     return res.status(400).json({ error: 'Password must be at least 6 characters' });
   }
 
   try {
     // Check MongoDB connection first
     if (mongoose.connection.readyState !== 1) {
-      console.error(`❌ MongoDB not connected. State: ${mongoose.connection.readyState}`);
+      console.error('MongoDB not connected');
       return res.status(500).json({ error: 'Database connection error. Please try again.' });
     }
-
-    console.log(`\n🔐 ===== SETUP PASSWORD REQUEST =====`);
-    console.log(`📝 Token: ${token.substring(0, 20)}...`);
-    console.log(`📝 Password length: ${password.length}`);
     
     const user = await User.findOne({ 
       setupToken: token, 
@@ -535,15 +509,10 @@ app.post('/auth/setup-password', async (req, res) => {
     });
 
     if (!user) {
-      console.log(`❌ No user found with this token or token expired`);
       return res.status(400).json({ error: 'Invalid or expired setup link. Please contact your agent.' });
     }
-
-    console.log(`✅ Found user: ${user.username} (ID: ${user._id})`);
-    console.log(`📝 BEFORE - passwordSet: ${user.passwordSet}, hasPassword: ${!!user.password}`);
     
     const hashedPassword = await hashPassword(password);
-    console.log(`🔑 Generated hash (first 30 chars): ${hashedPassword.substring(0, 30)}...`);
     
     // Update user document
     user.password = hashedPassword;
@@ -552,26 +521,14 @@ app.post('/auth/setup-password', async (req, res) => {
     user.setupTokenExpiry = null;
     
     const savedUser = await user.save();
-    console.log(`✅ AFTER SAVE - passwordSet: ${savedUser.passwordSet}, hasPassword: ${!!savedUser.password}`);
 
     // Verify with fresh database query
     const verifyUser = await User.findById(user._id).lean();
-    console.log(`🔍 FRESH QUERY - passwordSet: ${verifyUser.passwordSet}, hasPassword: ${!!verifyUser.password}`);
-    console.log(`🔍 Password hash in DB: ${verifyUser.password ? verifyUser.password.substring(0, 30) + '...' : 'NULL'}`);
 
     if (!verifyUser.password || !verifyUser.passwordSet) {
-      console.error(`❌ CRITICAL ERROR: Password was not persisted to database!`);
-      console.error(`Database state:`, {
-        _id: verifyUser._id,
-        username: verifyUser.username,
-        passwordSet: verifyUser.passwordSet,
-        hasPassword: !!verifyUser.password
-      });
+      console.error('Password was not persisted to database');
       return res.status(500).json({ error: 'Failed to save password to database. Please contact support.' });
     }
-
-    console.log(`✅ SUCCESS - Password saved and verified in database!`);
-    console.log(`🔐 ===== SETUP COMPLETE =====\n`);
 
     res.json({ 
       success: true, 
@@ -579,8 +536,7 @@ app.post('/auth/setup-password', async (req, res) => {
       username: savedUser.username
     });
   } catch (err) {
-    console.error('❌ Setup password error:', err.message);
-    console.error('Stack trace:', err.stack);
+    console.error('Setup password error:', err.message);
     res.status(500).json({ error: 'Failed to set password: ' + err.message });
   }
 });

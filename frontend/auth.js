@@ -47,7 +47,6 @@ async function handleLogin(e) {
             initializeApp();
         } else if (data.forcePasswordChange) {
             // User must change password - redirect to change page
-            console.log('Force password change required, redirecting...');
             sessionStorage.setItem('changeToken', data.changeToken);
             sessionStorage.setItem('changeUsername', data.username);
             sessionStorage.setItem('currentPassword', password);
@@ -299,27 +298,16 @@ async function handleSetupPassword(e) {
     btn.disabled = true;
     btn.textContent = 'Setting Password...';
 
-    console.log('🔐 Setup Password - Starting request...');
-    console.log('📝 Token:', token.substring(0, 20) + '...');
-    console.log('📝 Password length:', password.length);
-    console.log('📝 Backend URL:', BACKEND_URL);
-
     try {
-        console.log('📡 Sending request to:', `${BACKEND_URL}/auth/setup-password`);
         const res = await fetch(`${BACKEND_URL}/auth/setup-password`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ token, password })
         });
         
-        console.log('📡 Response status:', res.status);
-        console.log('📡 Response ok:', res.ok);
-        
         const data = await res.json();
-        console.log('📡 Response data:', data);
 
         if (data.success) {
-            console.log('✅ Password setup successful!');
             successEl.innerHTML = `✅ Password set successfully!<br><br>Your username is: <strong>${data.username}</strong><br><br>Redirecting to login...`;
             successEl.style.display = 'block';
             document.getElementById('setup-password-form').style.display = 'none';
@@ -328,12 +316,11 @@ async function handleSetupPassword(e) {
                 window.location.href = window.location.origin + window.location.pathname;
             }, 3000);
         } else {
-            console.error('❌ Setup failed:', data.error);
             errorEl.textContent = data.error || 'Failed to set password';
             errorEl.style.display = 'block';
         }
     } catch (err) {
-        console.error('❌ Request error:', err);
+        console.error('Setup password error:', err);
         errorEl.textContent = 'Cannot connect to server. Please try again.';
         errorEl.style.display = 'block';
     } finally {
@@ -434,25 +421,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const setupForm = document.getElementById('setup-password-form');
     if (setupForm) {
         setupForm.addEventListener('submit', handleSetupPassword);
-        console.log('✅ Setup form event listener attached');
     }
 
     // Reset password form - attach listener BEFORE checking tokens
     const resetForm = document.getElementById('reset-password-form');
     if (resetForm) {
         resetForm.addEventListener('submit', handleResetPassword);
-        console.log('✅ Reset form event listener attached');
     }
 
     // Change password form
     const changeForm = document.getElementById('change-password-form');
     if (changeForm) {
         changeForm.addEventListener('submit', handleChangePassword);
-        console.log('✅ Change form event listener attached');
     }
 
     if (setupToken) {
-        console.log('🔐 Setup token detected, showing setup page');
         showView('setup');
         // Initialize password validation for setup page
         setTimeout(() => initSetupPasswordValidation(), 100);
@@ -460,7 +443,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (resetToken) {
-        console.log('🔄 Reset token detected, showing reset page');
         showView('reset');
         // Initialize password validation for reset page
         setTimeout(() => initResetPasswordValidation(), 100);
