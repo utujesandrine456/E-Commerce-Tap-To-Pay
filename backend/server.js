@@ -36,10 +36,32 @@ if (!RESEND_API_KEY) {
 const resend = new Resend(RESEND_API_KEY);
 console.log(`📧 Resend initialized: ${RESEND_API_KEY ? '✅ API key found' : '❌ No API key'}`);
 
-// MongoDB Connection
-mongoose.connect(MONGO_URI)
-  .then(() => console.log('Connected to MongoDB'))
-  .catch(err => console.error('MongoDB connection error:', err));
+// MongoDB Connection with better options
+mongoose.connect(MONGO_URI, {
+  serverSelectionTimeoutMS: 5000,
+  socketTimeoutMS: 45000,
+})
+  .then(() => {
+    console.log('✅ Connected to MongoDB');
+    console.log(`📊 Database: ${mongoose.connection.name}`);
+  })
+  .catch(err => {
+    console.error('❌ MongoDB connection error:', err);
+    process.exit(1);
+  });
+
+// Monitor MongoDB connection
+mongoose.connection.on('error', err => {
+  console.error('❌ MongoDB error:', err);
+});
+
+mongoose.connection.on('disconnected', () => {
+  console.warn('⚠️ MongoDB disconnected');
+});
+
+mongoose.connection.on('reconnected', () => {
+  console.log('✅ MongoDB reconnected');
+});
 
 // ==================== SCHEMAS ====================
 
@@ -51,6 +73,7 @@ const userSchema = new mongoose.Schema({
   email: { type: String, default: '' },
   role: { type: String, enum: ['agent', 'salesperson'], required: true },
   passwordSet: { type: Boolean, default: false },
+  forcePasswordChange: { type: Boolean, default: false },
   setupToken: { type: String, default: null },
   setupTokenExpiry: { type: Date, default: null },
   resetToken: { type: String, default: null },
@@ -249,20 +272,38 @@ app.post('/auth/login', async (req, res) => {
   }
 
   try {
+    const searchTerm = username.toLowerCase().trim();
+    console.log(`🔍 Login attempt with: ${searchTerm}`);
+    
     // Try to find user by username or email
-    const user = await User.findOne({
+    // Build query conditions that handle empty emails
+    const query = {
       $or: [
-        { username: username.toLowerCase() },
-        { email: username.toLowerCase() }
+        { username: searchTerm }
       ]
-    });
+    };
+    
+    // Only search by email if the search term looks like an email (contains @)
+    if (searchTerm.includes('@')) {
+      query.$or.push({ email: searchTerm });
+    }
+    
+    console.log(`� Search query:`, JSON.stringify(query));
+    
+    const user = await User.findOne(query);
     
     if (!user) {
+      console.log(`❌ Login failed: User not found for username/email: ${searchTerm}`);
       return res.status(401).json({ error: 'Invalid username/email or password' });
     }
 
+    console.log(`🔍 Found user: ${user.username}, email: ${user.email || '(no email)'}`);
+    console.log(`📝 Password set flag: ${user.passwordSet}`);
+    console.log(`🔐 Password hash exists: ${!!user.password}`);
+
     // Check if password has been set
     if (!user.passwordSet || !user.password) {
+      console.log(`❌ Login failed: Password not set for user ${user.username}`);
       return res.status(403).json({ 
         error: 'Password not set. Please use your setup link to set your password.',
         needsSetup: true,
@@ -271,8 +312,28 @@ app.post('/auth/login', async (req, res) => {
     }
 
     const isValid = await verifyPassword(password, user.password);
+    console.log(`🔑 Password verification result: ${isValid}`);
+    
     if (!isValid) {
+      console.log(`❌ Login failed: Invalid password for user ${user.username}`);
       return res.status(401).json({ error: 'Invalid username/email or password' });
+    }
+
+    // Check if user must change password
+    if (user.forcePasswordChange) {
+      // Generate a temporary change password token
+      const crypto = require('crypto');
+      const changeToken = crypto.randomBytes(32).toString('hex');
+      user.resetToken = changeToken;
+      user.resetTokenExpiry = new Date(Date.now() + 1 * 60 * 60 * 1000); // 1 hour
+      await user.save();
+
+      return res.status(403).json({
+        error: 'You must change your password before continuing.',
+        forcePasswordChange: true,
+        changeToken: changeToken,
+        username: user.username
+      });
     }
 
     // Update last login
@@ -439,40 +500,88 @@ app.post('/auth/register', authenticateToken, requireRole('agent'), async (req, 
 
 // Setup password (salesperson first login via token)
 app.post('/auth/setup-password', async (req, res) => {
+  console.log(`\n🔐 ===== SETUP PASSWORD ENDPOINT CALLED =====`);
+  console.log(`📝 Request body:`, req.body);
+  
   const { token, password } = req.body;
 
+  console.log(`📝 Token received: ${token ? 'YES (' + token.substring(0, 20) + '...)' : 'NO'}`);
+  console.log(`📝 Password received: ${password ? 'YES (length: ' + password.length + ')' : 'NO'}`);
+
   if (!token || !password) {
+    console.log(`❌ Missing required fields`);
     return res.status(400).json({ error: 'Token and password are required' });
   }
 
   if (password.length < 6) {
+    console.log(`❌ Password too short: ${password.length} characters`);
     return res.status(400).json({ error: 'Password must be at least 6 characters' });
   }
 
   try {
+    // Check MongoDB connection first
+    if (mongoose.connection.readyState !== 1) {
+      console.error(`❌ MongoDB not connected. State: ${mongoose.connection.readyState}`);
+      return res.status(500).json({ error: 'Database connection error. Please try again.' });
+    }
+
+    console.log(`\n🔐 ===== SETUP PASSWORD REQUEST =====`);
+    console.log(`📝 Token: ${token.substring(0, 20)}...`);
+    console.log(`📝 Password length: ${password.length}`);
+    
     const user = await User.findOne({ 
       setupToken: token, 
       setupTokenExpiry: { $gt: new Date() } 
     });
 
     if (!user) {
+      console.log(`❌ No user found with this token or token expired`);
       return res.status(400).json({ error: 'Invalid or expired setup link. Please contact your agent.' });
     }
 
-    user.password = await hashPassword(password);
+    console.log(`✅ Found user: ${user.username} (ID: ${user._id})`);
+    console.log(`📝 BEFORE - passwordSet: ${user.passwordSet}, hasPassword: ${!!user.password}`);
+    
+    const hashedPassword = await hashPassword(password);
+    console.log(`🔑 Generated hash (first 30 chars): ${hashedPassword.substring(0, 30)}...`);
+    
+    // Update user document
+    user.password = hashedPassword;
     user.passwordSet = true;
     user.setupToken = null;
     user.setupTokenExpiry = null;
-    await user.save();
+    
+    const savedUser = await user.save();
+    console.log(`✅ AFTER SAVE - passwordSet: ${savedUser.passwordSet}, hasPassword: ${!!savedUser.password}`);
+
+    // Verify with fresh database query
+    const verifyUser = await User.findById(user._id).lean();
+    console.log(`🔍 FRESH QUERY - passwordSet: ${verifyUser.passwordSet}, hasPassword: ${!!verifyUser.password}`);
+    console.log(`🔍 Password hash in DB: ${verifyUser.password ? verifyUser.password.substring(0, 30) + '...' : 'NULL'}`);
+
+    if (!verifyUser.password || !verifyUser.passwordSet) {
+      console.error(`❌ CRITICAL ERROR: Password was not persisted to database!`);
+      console.error(`Database state:`, {
+        _id: verifyUser._id,
+        username: verifyUser.username,
+        passwordSet: verifyUser.passwordSet,
+        hasPassword: !!verifyUser.password
+      });
+      return res.status(500).json({ error: 'Failed to save password to database. Please contact support.' });
+    }
+
+    console.log(`✅ SUCCESS - Password saved and verified in database!`);
+    console.log(`🔐 ===== SETUP COMPLETE =====\n`);
 
     res.json({ 
       success: true, 
       message: 'Password set successfully! You can now log in.',
-      username: user.username
+      username: savedUser.username
     });
   } catch (err) {
-    console.error('Setup password error:', err);
-    res.status(500).json({ error: 'Failed to set password' });
+    console.error('❌ Setup password error:', err.message);
+    console.error('Stack trace:', err.stack);
+    res.status(500).json({ error: 'Failed to set password: ' + err.message });
   }
 });
 
@@ -485,12 +594,21 @@ app.post('/auth/forgot-password', async (req, res) => {
   }
 
   try {
-    const user = await User.findOne({ 
+    const searchTerm = username.toLowerCase().trim();
+    
+    // Build query conditions that handle empty emails
+    const query = {
       $or: [
-        { username: username.toLowerCase() },
-        { email: username.toLowerCase() }
+        { username: searchTerm }
       ]
-    });
+    };
+    
+    // Only search by email if the search term looks like an email (contains @)
+    if (searchTerm.includes('@')) {
+      query.$or.push({ email: searchTerm });
+    }
+    
+    const user = await User.findOne(query);
     
     if (!user) {
       // Don't reveal if user exists
@@ -498,7 +616,7 @@ app.post('/auth/forgot-password', async (req, res) => {
     }
 
     // Check if user has email
-    if (!user.email) {
+    if (!user.email || user.email.trim() === '') {
       console.log(`⚠️ User ${user.username} has no email address. Cannot send reset link.`);
       return res.json({ success: true, message: 'If the account exists, a reset link has been sent to the registered email address.' });
     }
@@ -620,6 +738,7 @@ app.post('/auth/reset-password', async (req, res) => {
 
     user.password = await hashPassword(password);
     user.passwordSet = true;
+    user.forcePasswordChange = false; // Clear force change flag
     user.resetToken = null;
     user.resetTokenExpiry = null;
     await user.save();
@@ -628,6 +747,59 @@ app.post('/auth/reset-password', async (req, res) => {
   } catch (err) {
     console.error('Reset password error:', err);
     res.status(500).json({ error: 'Failed to reset password' });
+  }
+});
+
+// Change password (for forced password change on first login)
+app.post('/auth/change-password', async (req, res) => {
+  const { token, oldPassword, newPassword } = req.body;
+
+  if (!token || !oldPassword || !newPassword) {
+    return res.status(400).json({ error: 'Token, old password, and new password are required' });
+  }
+
+  if (newPassword.length < 6) {
+    return res.status(400).json({ error: 'New password must be at least 6 characters' });
+  }
+
+  try {
+    const user = await User.findOne({ 
+      resetToken: token, 
+      resetTokenExpiry: { $gt: new Date() } 
+    });
+
+    if (!user) {
+      return res.status(400).json({ error: 'Invalid or expired change password link.' });
+    }
+
+    // Verify old password
+    const isValid = await verifyPassword(oldPassword, user.password);
+    if (!isValid) {
+      return res.status(401).json({ error: 'Current password is incorrect' });
+    }
+
+    // Check if new password is same as old
+    const isSame = await verifyPassword(newPassword, user.password);
+    if (isSame) {
+      return res.status(400).json({ error: 'New password must be different from current password' });
+    }
+
+    user.password = await hashPassword(newPassword);
+    user.forcePasswordChange = false;
+    user.resetToken = null;
+    user.resetTokenExpiry = null;
+    await user.save();
+
+    console.log(`✅ Password changed for ${user.username}`);
+
+    res.json({ 
+      success: true, 
+      message: 'Password changed successfully! You can now log in with your new password.',
+      username: user.username 
+    });
+  } catch (err) {
+    console.error('Change password error:', err);
+    res.status(500).json({ error: 'Failed to change password' });
   }
 });
 
@@ -1249,31 +1421,18 @@ async function seedDefaultUsers() {
         fullName: 'System Agent',
         email: 'agent@tapandpay.rw',
         role: 'agent',
-        passwordSet: true
+        passwordSet: true,
+        forcePasswordChange: true // Force password change on first login
       });
       console.log('Default agent user created (username: agent, password: agent123)');
+      console.log('⚠️  Agent must change password on first login');
     } else if (!agentExists.passwordSet) {
       // Fix existing agent that may not have passwordSet flag
       agentExists.passwordSet = true;
+      agentExists.forcePasswordChange = true;
       await agentExists.save();
     }
-
-    const salesExists = await User.findOne({ username: 'sales' });
-    if (!salesExists) {
-      const hashedPassword = await hashPassword('sales123');
-      await User.create({
-        username: 'sales',
-        password: hashedPassword,
-        fullName: 'Sales Person',
-        email: 'sales@tapandpay.rw',
-        role: 'salesperson',
-        passwordSet: true
-      });
-      console.log('Default salesperson user created (username: sales, password: sales123)');
-    } else if (!salesExists.passwordSet) {
-      salesExists.passwordSet = true;
-      await salesExists.save();
-    }
+    
   } catch (err) {
     console.error('Error seeding users:', err);
   }

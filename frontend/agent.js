@@ -13,17 +13,18 @@ function renderAgentDashboard() {
 
     const main = document.getElementById('main-content');
     main.innerHTML = `
-    <!-- Stats -->
-    <div class="stats-grid" id="agent-stats">
-      <div class="stat-card"><div class="stat-icon-box purple">💳</div><div><div class="stat-label">Total Cards</div><div class="stat-value" id="s-total-cards">0</div></div></div>
-      <div class="stat-card"><div class="stat-icon-box green">📈</div><div><div class="stat-label">Today's Transactions</div><div class="stat-value" id="s-today-tx">0</div></div></div>
-      <div class="stat-card"><div class="stat-icon-box amber">💰</div><div><div class="stat-label">Top-Up Volume</div><div class="stat-value" id="s-topup-vol">$0.00</div></div></div>
-      <div class="stat-card"><div class="stat-icon-box red">🛍️</div><div><div class="stat-label">Purchase Volume</div><div class="stat-value" id="s-purchase-vol">$0.00</div></div></div>
-    </div>
-
     <!-- Card Holders Section -->
     <div id="section-agent-cards" class="page-section active-section">
       <div class="section-header"><h2 class="section-title">💳 Card Holders</h2><p class="section-subtitle">Manage all registered RFID cards and their holders</p></div>
+      
+      <!-- Stats - Only shown in Card Holders section -->
+      <div class="stats-grid" id="agent-stats">
+        <div class="stat-card"><div class="stat-icon-box purple">💳</div><div><div class="stat-label">Total Cards</div><div class="stat-value" id="s-total-cards">0</div></div></div>
+        <div class="stat-card"><div class="stat-icon-box green">📈</div><div><div class="stat-label">Today's Transactions</div><div class="stat-value" id="s-today-tx">0</div></div></div>
+        <div class="stat-card"><div class="stat-icon-box amber">💰</div><div><div class="stat-label">Top-Up Volume</div><div class="stat-value" id="s-topup-vol">$0.00</div></div></div>
+        <div class="stat-card"><div class="stat-icon-box red">🛍️</div><div><div class="stat-label">Purchase Volume</div><div class="stat-value" id="s-purchase-vol">$0.00</div></div></div>
+      </div>
+      
       <div class="glass-card">
         <div class="search-bar"><span class="search-icon">🔍</span><input type="text" id="card-search" placeholder="Search by name, UID, or email..."></div>
         <div class="data-table-container"><table class="data-table" id="cards-table">
@@ -268,10 +269,25 @@ async function loadAgentStats() {
         const res = await fetch(`${BACKEND_URL}/stats`);
         const s = await res.json();
         const el = (id) => document.getElementById(id);
-        if (el('s-total-cards')) el('s-total-cards').textContent = s.totalCards;
-        if (el('s-today-tx')) el('s-today-tx').textContent = s.todayTransactions;
-        if (el('s-topup-vol')) el('s-topup-vol').textContent = `$${s.topupVolume.toFixed(2)}`;
-        if (el('s-purchase-vol')) el('s-purchase-vol').textContent = `$${s.purchaseVolume.toFixed(2)}`;
+
+        // Helper function to set value with responsive sizing
+        const setValue = (element, value) => {
+            if (!element) return;
+            element.textContent = value;
+            const length = value.toString().length;
+            if (length > 12) {
+                element.setAttribute('data-length', 'very-long');
+            } else if (length > 8) {
+                element.setAttribute('data-length', 'long');
+            } else {
+                element.removeAttribute('data-length');
+            }
+        };
+
+        setValue(el('s-total-cards'), s.totalCards);
+        setValue(el('s-today-tx'), s.todayTransactions);
+        setValue(el('s-topup-vol'), `$${s.topupVolume.toFixed(2)}`);
+        setValue(el('s-purchase-vol'), `$${s.purchaseVolume.toFixed(2)}`);
         if (el('st-cards')) el('st-cards').textContent = s.totalCards;
         if (el('st-tx')) el('st-tx').textContent = s.totalTransactions;
         if (el('st-net')) el('st-net').textContent = `$${s.netBalance.toFixed(2)}`;
@@ -279,6 +295,7 @@ async function loadAgentStats() {
         updateSysStatus('online');
     } catch (err) { console.error('Stats error:', err); }
 }
+
 
 function updateSysStatus(state) {
     const online = state === 'online';
@@ -314,9 +331,20 @@ function renderTxList(containerId, txs) {
         const icon = tx.type === 'topup' ? '↑' : '↓';
         const sign = tx.type === 'topup' ? '+' : '-';
         const color = tx.type === 'topup' ? 'positive' : 'negative';
-        return `<div class="transaction-item ${cls}"><div class="transaction-icon">${icon}</div><div class="transaction-details"><div class="transaction-desc">${tx.holderName} - ${tx.description || tx.type}</div><div class="transaction-time">${d.toLocaleDateString()} ${d.toLocaleTimeString()}</div></div><div class="transaction-amount"><div class="amount-value ${color}">${sign}$${tx.amount.toFixed(2)}</div><div class="balance-after">Bal: $${tx.balanceAfter.toFixed(2)}</div></div></div>`;
+
+        // Build description with items if available
+        let description = tx.description || tx.type;
+        if (tx.items && tx.items.length > 0) {
+            const itemsList = tx.items.map(item => `${item.name} (${item.quantity}x)`).join(', ');
+            description = `${tx.holderName} - ${itemsList}`;
+        } else {
+            description = `${tx.holderName} - ${description}`;
+        }
+
+        return `<div class="transaction-item ${cls}"><div class="transaction-icon">${icon}</div><div class="transaction-details"><div class="transaction-desc">${description}</div><div class="transaction-time">${d.toLocaleDateString()} ${d.toLocaleTimeString()}</div></div><div class="transaction-amount"><div class="amount-value ${color}">${sign}$${tx.amount.toFixed(2)}</div><div class="balance-after">Bal: $${tx.balanceAfter.toFixed(2)}</div></div></div>`;
     }).join('');
 }
+
 
 async function loadUsers() {
     try {

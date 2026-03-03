@@ -64,6 +64,9 @@
             <div class="login-input-wrapper">
               <span class="input-icon">🔒</span>
               <input type="password" id="login-password" placeholder="Enter your password" required autocomplete="off">
+              <button type="button" class="password-toggle" id="login-password-toggle" tabindex="-1">
+                <span class="toggle-icon">👁️</span>
+              </button>
             </div>
           </div>
           <button type="submit" id="login-btn" class="login-btn">
@@ -74,18 +77,7 @@
           </button>
         </form>
         <div class="login-footer">
-          <p>Default credentials:</p>
-          <div class="credential-chips">
-            <span class="credential-chip" onclick="fillCredentials('agent', 'agent123')">
-              <span class="chip-role agent">Agent</span>
-              <span>agent / agent123</span>
-            </span>
-            <span class="credential-chip" onclick="fillCredentials('sales', 'sales123')">
-              <span class="chip-role sales">Sales</span>
-              <span>sales / sales123</span>
-            </span>
-          </div>
-          <p style="margin-top:.75rem"><a href="#" onclick="showView('forgot'); return false;"
+          <p><a href="#" onclick="showView('forgot'); return false;"
               style="color:var(--primary);font-size:.8rem;text-decoration:none">Forgot Password?</a></p>
         </div>
       </div>
@@ -285,6 +277,103 @@
     </div>
   </div>
 
+  <!-- ==================== CHANGE PASSWORD PAGE (Forced change) ==================== -->
+  <div id="change-page" class="login-page" style="display: none;">
+    <div class="login-bg-effects">
+      <div class="login-orb orb-1"></div>
+      <div class="login-orb orb-2"></div>
+      <div class="login-orb orb-3"></div>
+    </div>
+    <div class="login-container">
+      <div class="login-card">
+        <div class="login-header">
+          <div class="login-logo" style="justify-content:center">
+            <div>
+              <h1>🔐 Change Password Required</h1>
+              <p class="login-tagline">You must change your password before continuing</p>
+            </div>
+          </div>
+        </div>
+        <div class="login-info-box" style="margin-bottom:1.5rem;padding:1rem;background:var(--warning-light);border:1px solid rgba(245,158,11,0.3);border-radius:8px;">
+          <p style="font-size:0.85rem;color:var(--warning);margin:0;">
+            ⚠️ For security reasons, you must change your default password before accessing the system.
+          </p>
+        </div>
+        <form id="change-password-form" class="login-form" autocomplete="off">
+          <div id="change-error" class="login-error" style="display:none;"></div>
+          
+          <div class="login-input-group">
+            <label for="change-current">Current Password</label>
+            <div class="login-input-wrapper">
+              <span class="input-icon">🔒</span>
+              <input type="password" id="change-current" placeholder="Enter current password" required autocomplete="current-password">
+              <button type="button" class="password-toggle" id="change-current-toggle" tabindex="-1">
+                <span class="toggle-icon">👁️</span>
+              </button>
+            </div>
+          </div>
+          
+          <div class="login-input-group">
+            <label for="change-password">New Password</label>
+            <div class="login-input-wrapper">
+              <span class="input-icon">🔒</span>
+              <input type="password" id="change-password" placeholder="Minimum 6 characters" required minlength="6" autocomplete="new-password">
+              <button type="button" class="password-toggle" id="change-password-toggle" tabindex="-1">
+                <span class="toggle-icon">👁️</span>
+              </button>
+            </div>
+            <!-- Password Strength Indicator -->
+            <div class="password-strength" id="change-password-strength" style="display:none;">
+              <div class="strength-bar">
+                <div class="strength-bar-fill" id="change-strength-fill"></div>
+              </div>
+              <div class="strength-text" id="change-strength-text">Password strength</div>
+            </div>
+            <!-- Password Requirements -->
+            <div class="password-requirements" id="change-requirements">
+              <div class="requirement" id="change-req-length">
+                <span class="req-icon">○</span>
+                <span class="req-text">At least 6 characters</span>
+              </div>
+              <div class="requirement" id="change-req-letter">
+                <span class="req-icon">○</span>
+                <span class="req-text">Contains a letter</span>
+              </div>
+              <div class="requirement" id="change-req-number">
+                <span class="req-icon">○</span>
+                <span class="req-text">Contains a number (recommended)</span>
+              </div>
+              <div class="requirement" id="change-req-different">
+                <span class="req-icon">○</span>
+                <span class="req-text">Different from current password</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="login-input-group">
+            <label for="change-confirm">Confirm New Password</label>
+            <div class="login-input-wrapper">
+              <span class="input-icon">🔒</span>
+              <input type="password" id="change-confirm" placeholder="Confirm your new password" required autocomplete="new-password">
+              <button type="button" class="password-toggle" id="change-confirm-toggle" tabindex="-1">
+                <span class="toggle-icon">👁️</span>
+              </button>
+            </div>
+            <!-- Password Match Indicator -->
+            <div class="password-match" id="change-match" style="display:none;">
+              <span class="match-icon">○</span>
+              <span class="match-text">Passwords match</span>
+            </div>
+          </div>
+          
+          <button type="submit" id="change-btn" class="login-btn" disabled>Change Password</button>
+        </form>
+        <div id="change-success" class="login-error"
+          style="display:none;background:var(--success-light);border-color:rgba(16,185,129,.3);color:#a7f3d0;"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- ==================== MAIN APPLICATION ==================== -->
   <div id="app-container" class="app-container" style="display: none;">
 
@@ -330,11 +419,11 @@
           </div>
         </div>
         <button class="logout-btn" id="logout-btn" title="Logout">
-          <span>🚪</span>
+          <span>➡️</span>
         </button>
       </div>
     </aside>
-
+➡️
     <!-- Main Content -->
     <main class="main-content" id="main-content">
       <!-- Content sections injected by JS based on role -->

@@ -563,7 +563,16 @@ body {
   display: flex;
   align-items: center;
   gap: .85rem;
-  transition: all .3s
+  transition: all .3s;
+  min-width: 0;
+  container-type: inline-size;
+  container-name: stat-card;
+}
+
+.stat-card > div:last-child {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
 }
 
 .stat-card:hover {
@@ -607,7 +616,38 @@ body {
 
 .stat-value {
   font-size: 1.5rem;
-  font-weight: 700
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+  word-break: break-all;
+}
+
+/* Automatically scale down font for container */
+@media (max-width: 1400px) {
+  .stat-value {
+    font-size: 1.3rem;
+  }
+}
+
+@media (max-width: 1200px) {
+  .stat-value {
+    font-size: 1.1rem;
+  }
+}
+
+/* Use CSS container queries for better responsiveness */
+@container (max-width: 200px) {
+  .stat-value {
+    font-size: 1.2rem;
+  }
+}
+
+@container (max-width: 150px) {
+  .stat-value {
+    font-size: 1rem;
+  }
 }
 
 /* ===== TABLE ===== */
