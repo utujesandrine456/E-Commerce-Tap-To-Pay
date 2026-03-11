@@ -521,16 +521,16 @@ async function loadAgentStats() {
             if (el) el.textContent = val;
         };
         
-        setVal('stat-total-cards', s.totalCards);
-        setVal('stat-total-revenue', `Frw ${s.totalRevenue.toLocaleString()}`);
-        setVal('stat-today-tx', s.todayTransactions);
-        setVal('stat-topup-vol', `Frw ${s.topupVolume.toLocaleString()}`);
+        setVal('stat-total-cards', s.totalCards || 0);
+        setVal('stat-total-revenue', `Frw ${(s.totalRevenue || 0).toLocaleString()}`);
+        setVal('stat-today-tx', s.todayTransactions || 0);
+        setVal('stat-topup-vol', `Frw ${(s.topupVolume || 0).toLocaleString()}`);
         
         // Settings/Dashboard stats consistency
-        setVal('st-cards', s.totalCards);
-        setVal('st-tx', s.totalTransactions);
-        setVal('st-net', `Frw ${s.netBalance.toLocaleString()}`);
-        setVal('st-active', s.activeCards);
+        setVal('st-cards', s.totalCards || 0);
+        setVal('st-tx', s.totalTransactions || 0);
+        setVal('st-net', `Frw ${(s.netBalance || 0).toLocaleString()}`);
+        setVal('st-active', s.activeCards || 0);
         
     } catch (err) { console.error('Stats error:', err); }
 }

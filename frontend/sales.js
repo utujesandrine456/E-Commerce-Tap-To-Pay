@@ -226,6 +226,7 @@ function renderSalesProducts() {
     else if (isLowStock) badge = `<span class="product-badge warning">Only ${available} left</span>`;
     else if (p.category && p.category.slug === 'rwandan') badge = '<span class="product-badge rwandan">🇷🇼</span>';
     
+    const inCart = cart.find(i => i.product._id === p._id);
     const qtyControls = inCart ? `<div class="product-qty-controls" onclick="event.stopPropagation()"><button class="qty-btn" onclick="changeSalesQty('${p._id}',-1)">−</button><span class="cart-item-qty">${inCart.qty}</span><button class="qty-btn" onclick="changeSalesQty('${p._id}',1)">+</button></div>` : '<div class="product-add-hint">Click to add</div>';
     
     return `

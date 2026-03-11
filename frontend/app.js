@@ -34,6 +34,10 @@ function setupSocketListeners() {
   socket.on('connect', () => {
     console.log('Connected to backend');
     if (indicator) indicator.classList.add('connected');
+    
+    // Safety check if user is not yet logged in
+    if (!currentUser) return;
+
     if (currentUser.role === 'agent') {
       loadAgentData();
       updateSysStatus('online');
