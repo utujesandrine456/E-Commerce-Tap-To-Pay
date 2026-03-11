@@ -16,7 +16,7 @@ function generateReceiptEmail(transaction) {
       itemsHtml += `
           <tr style="border-bottom:1px solid #e5e7eb;">
             <td style="padding:12px 0;color:#374151;font-size:14px;">${item.name} <span style="color:#6b7280;">x${qty}</span></td>
-            <td style="padding:12px 0;text-align:right;font-weight:600;color:#111827;font-size:14px;">$${itemTotal.toFixed(2)}</td>
+            <td style="padding:12px 0;text-align:right;font-weight:600;color:#111827;font-size:14px;">Frw ${itemTotal.toLocaleString()}</td>
           </tr>`;
     });
     
@@ -154,38 +154,38 @@ function generateReceiptEmail(transaction) {
         <div class="header">
           <h1>💳 TAP & PAY</h1>
           <p>Payment Receipt</p>
-          <div class="receipt-id">${transaction.receiptId || 'N/A'}</div>
+          <div class="receipt-id">: ${transaction.receiptId || 'N/A'}</div>
         </div>
         <div class="content">
           <div class="detail-row">
             <span class="detail-label">📅 Date</span>
-            <span class="detail-value">${date.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}</span>
+            <span class="detail-value">: ${date.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}</span>
           </div>
           <div class="detail-row">
             <span class="detail-label">🕐 Time</span>
-            <span class="detail-value">${date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+            <span class="detail-value">: ${date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
           </div>
           <div class="detail-row">
             <span class="detail-label">👤 Card Holder</span>
-            <span class="detail-value">${transaction.holderName || 'N/A'}</span>
+            <span class="detail-value">: ${transaction.holderName || 'N/A'}</span>
           </div>
           <div class="detail-row">
             <span class="detail-label">🔖 Card UID</span>
-            <span class="detail-value" style="font-family:'Courier New',monospace;font-size:13px;">${transaction.uid || 'N/A'}</span>
+            <span class="detail-value" style="font-family:'Courier New',monospace;font-size:13px;">: ${transaction.uid || 'N/A'}</span>
           </div>
           ${itemsHtml}
           <div class="total-row">
             <span class="total-label">💰 Total Paid</span>
-            <span class="total-value">$${transaction.amount.toFixed(2)}</span>
+            <span class="total-value">: Frw ${transaction.amount.toLocaleString()}</span>
           </div>
           <div style="margin-top:25px;padding-top:25px;border-top:1px solid #e5e7eb;">
             <div class="detail-row" style="border-bottom:none;padding:8px 0;">
               <span class="detail-label">Balance Before</span>
-              <span class="detail-value" style="color:#6b7280;">$${transaction.balanceBefore.toFixed(2)}</span>
+              <span class="detail-value" style="color:#6b7280;">: Frw ${transaction.balanceBefore.toLocaleString()}</span>
             </div>
             <div class="detail-row" style="border-bottom:none;padding:8px 0;">
               <span class="detail-label">Balance After</span>
-              <span class="detail-value" style="color:#10b981;font-size:16px;">$${transaction.balanceAfter.toFixed(2)}</span>
+              <span class="detail-value" style="color:#10b981;font-size:16px;">: Frw ${transaction.balanceAfter.toLocaleString()}</span>
             </div>
           </div>
         </div>

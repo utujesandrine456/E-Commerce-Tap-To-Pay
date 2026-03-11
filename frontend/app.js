@@ -13,6 +13,10 @@ function initializeApp() {
   roleBadge.className = `user-role-badge ${currentUser.role === 'agent' ? 'agent-badge' : 'sales-badge'}`;
   document.getElementById('sidebar-role').textContent = currentUser.role === 'agent' ? 'Agent Dashboard' : 'Sales Dashboard';
 
+  // Set scanner ID selection
+  const scannerSelect = document.getElementById('terminal-id-selector');
+  if (scannerSelect) scannerSelect.value = scannerId;
+
   // Render appropriate dashboard
   if (currentUser.role === 'agent') {
     renderAgentDashboard();
@@ -46,6 +50,9 @@ function setupSocketListeners() {
 
   // Card scanned
   socket.on('card-status', async (data) => {
+    // Filter by scannerId if present in payload
+    if (data.deviceId && data.deviceId !== scannerId) return;
+
     lastScannedUid = data.uid;
     cardPresent = data.present !== false;
     cardScanTime = Date.now();
@@ -75,13 +82,13 @@ function setupSocketListeners() {
           if (topupBtn) topupBtn.disabled = false;
           if (topupVisual) topupVisual.classList.add('active');
           if (topupHolder) topupHolder.textContent = currentCardData.holderName;
-          if (topupBalance) topupBalance.textContent = `$${currentCardData.balance.toFixed(2)}`;
+          if (topupBalance) topupBalance.textContent = `Frw ${currentCardData.balance.toLocaleString()}`;
 
           const statusEl = document.getElementById('topup-status-display');
           if (statusEl) statusEl.innerHTML = `
             <div class="data-row"><span class="data-label">UID</span><span class="data-value">${currentCardData.uid}</span></div>
             <div class="data-row"><span class="data-label">Holder</span><span class="data-value">${currentCardData.holderName}</span></div>
-            <div class="data-row"><span class="data-label">Balance</span><span class="data-value" style="color:var(--primary)">$${currentCardData.balance.toFixed(2)}</span></div>
+            <div class="data-row"><span class="data-label">Balance</span><span class="data-value" style="color:var(--primary)">Frw ${currentCardData.balance.toLocaleString()}</span></div>
             <div class="data-row"><span class="data-label">Status</span><span class="data-value" style="color:var(--success)">Active</span></div>
           `;
 
@@ -98,7 +105,7 @@ function setupSocketListeners() {
           if (topupBtn) topupBtn.disabled = true;
           if (topupVisual) topupVisual.classList.add('active');
           if (topupHolder) topupHolder.textContent = data.uid;
-          if (topupBalance) topupBalance.textContent = `$${data.balance.toFixed(2)}`;
+          if (topupBalance) topupBalance.textContent = `Frw ${data.balance.toLocaleString()}`;
 
           const statusEl = document.getElementById('topup-status-display');
           if (statusEl) statusEl.innerHTML = '<div class="status-placeholder" style="color:var(--warning)">⚠️ Unregistered card. Register it first.</div>';
@@ -108,7 +115,7 @@ function setupSocketListeners() {
           if (regBtn) regBtn.disabled = false;
           if (regVisual) regVisual.classList.add('active');
           if (regHolder) regHolder.textContent = 'NEW CARD';
-          if (regBalance) regBalance.textContent = '$0.00';
+          if (regBalance) regBalance.textContent = 'Frw 0';
           const regStatus = document.getElementById('reg-status');
           if (regStatus) regStatus.innerHTML = `
             <div class="data-row"><span class="data-label">UID</span><span class="data-value">${data.uid}</span></div>
@@ -126,16 +133,16 @@ function setupSocketListeners() {
           isNewCard = false;
           if (salesVisual) salesVisual.classList.add('active');
           if (salesHolder) salesHolder.textContent = currentCardData.holderName;
-          if (salesBalance) salesBalance.textContent = `$${currentCardData.balance.toFixed(2)}`;
+          if (salesBalance) salesBalance.textContent = `Frw ${currentCardData.balance.toLocaleString()}`;
           updateSalesCardInfo(currentCardData);
 
           // Update checkout
           const checkoutBal = document.getElementById('checkout-card-balance');
-          if (checkoutBal) checkoutBal.textContent = `$${currentCardData.balance.toFixed(2)}`;
+          if (checkoutBal) checkoutBal.textContent = `Frw ${currentCardData.balance.toLocaleString()}`;
           const checkoutStatus = document.getElementById('checkout-card-status');
           if (checkoutStatus) checkoutStatus.innerHTML = `
             <div class="data-row"><span class="data-label">Card</span><span class="data-value">${currentCardData.holderName}</span></div>
-            <div class="data-row"><span class="data-label">Balance</span><span class="data-value" style="color:var(--primary)">$${currentCardData.balance.toFixed(2)}</span></div>
+            <div class="data-row"><span class="data-label">Balance</span><span class="data-value" style="color:var(--primary)">Frw ${currentCardData.balance.toLocaleString()}</span></div>
           `;
           updateCheckoutPayBtn();
           loadSalesHistory();
@@ -144,7 +151,7 @@ function setupSocketListeners() {
           isNewCard = true;
           if (salesVisual) salesVisual.classList.add('active');
           if (salesHolder) salesHolder.textContent = data.uid;
-          if (salesBalance) salesBalance.textContent = `$${data.balance.toFixed(2)}`;
+          if (salesBalance) salesBalance.textContent = `Frw ${data.balance.toLocaleString()}`;
           updateSalesCardInfo(null);
         }
       }
@@ -155,9 +162,10 @@ function setupSocketListeners() {
 
   // Card balance update
   socket.on('card-balance', (data) => {
+    if (data.deviceId && data.deviceId !== scannerId) return;
     if (data.uid !== lastScannedUid) return;
     if (currentCardData) currentCardData.balance = data.new_balance;
-    const bal = `$${data.new_balance.toFixed(2)}`;
+    const bal = `Frw ${data.new_balance.toLocaleString()}`;
     // Update all balance displays
     ['topup-card-balance', 'sales-card-balance', 'checkout-card-balance'].forEach(id => {
       const el = document.getElementById(id);
@@ -169,7 +177,7 @@ function setupSocketListeners() {
   socket.on('payment-success', (data) => {
     if (data.uid === lastScannedUid && currentCardData) {
       currentCardData.balance = data.balanceAfter;
-      const bal = `$${data.balanceAfter.toFixed(2)}`;
+      const bal = `Frw ${data.balanceAfter.toLocaleString()}`;
       ['topup-card-balance', 'sales-card-balance', 'checkout-card-balance'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.textContent = bal;
@@ -181,6 +189,7 @@ function setupSocketListeners() {
 
   // Card removed
   socket.on('card-removed', (data) => {
+    if (data.deviceId && data.deviceId !== scannerId) return;
     if (data.uid !== lastScannedUid) return;
     cardPresent = false;
 

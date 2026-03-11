@@ -1,5 +1,7 @@
+const mongoose = require('mongoose');
 const Product = require('../models/Product');
 const Category = require('../models/Category');
+const Reservation = require('../models/Reservation');
 
 // Categories
 exports.getCategories = async (req, res) => {
@@ -26,9 +28,74 @@ exports.addCategory = async (req, res) => {
 exports.getProducts = async (req, res) => {
   try {
     const products = await Product.find().populate('category').sort({ name: 1 });
-    res.json(products);
+    
+    // Get all active reservations
+    const reservations = await Reservation.aggregate([
+      { $group: { _id: "$productId", totalReserved: { $sum: "$quantity" } } }
+    ]);
+    
+    const resMap = {};
+    reservations.forEach(r => resMap[r._id.toString()] = r.totalReserved);
+    
+    // Supplement product data with available stock
+    const productsWithAvailable = products.map(p => {
+      const pObj = p.toObject();
+      const reserved = resMap[p._id.toString()] || 0;
+      pObj.availableStock = Math.max(0, p.stock - reserved);
+      pObj.isReserved = reserved > 0;
+      return pObj;
+    });
+
+    res.json(productsWithAvailable);
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch products' });
+  }
+};
+
+exports.reserveProducts = async (req, res) => {
+  const { items, sessionId } = req.body;
+  if (!items || !items.length || !sessionId) {
+    return res.status(400).json({ error: 'Items and sessionId required' });
+  }
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes locking
+
+    for (const item of items) {
+      const product = await Product.findById(item.productId).session(session);
+      if (!product) throw new Error(`Product not found: ${item.productId}`);
+
+      // Calculate available stock
+      const existingReservations = await Reservation.aggregate([
+        { $match: { productId: product._id } },
+        { $group: { _id: null, total: { $sum: "$quantity" } } }
+      ]).session(session);
+
+      const reservedQty = existingReservations.length > 0 ? existingReservations[0].total : 0;
+      const available = product.stock - reservedQty;
+
+      if (available < item.qty) {
+        throw new Error(`Insufficient available stock for ${product.name}. Requested: ${item.qty}, Available: ${available}`);
+      }
+
+      await Reservation.create([{
+        productId: product._id,
+        quantity: item.qty,
+        sessionId,
+        expiresAt
+      }], { session });
+    }
+
+    await session.commitTransaction();
+    res.json({ success: true, message: 'Stock reserved for 5 minutes', expiresAt });
+  } catch (err) {
+    await session.abortTransaction();
+    res.status(400).json({ error: err.message });
+  } finally {
+    session.endSession();
   }
 };
 

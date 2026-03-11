@@ -430,6 +430,14 @@
         <!-- Navigation items injected by JS based on role -->
       </nav>
 
+      <div class="terminal-id-wrap">
+              <span class="tiny-label">Terminal:</span>
+              <select id="terminal-id-selector" class="scanner-select" onchange="setScannerId(this.value)">
+                <option value="reader-1">RFID Reader 1</option>
+                <option value="reader-2">RFID Reader 2</option>
+                <option value="reader-3">RFID Reader 3</option>
+              </select>
+            </div>
       <div class="sidebar-user">
         <div class="user-info">
           <div class="user-avatar" id="user-avatar">A</div>
@@ -509,8 +517,8 @@
           <input type="tel" id="edit-card-phone" placeholder="Enter phone">
         </div>
         <div class="modal-input-group">
-          <label>Balance ($)</label>
-          <input type="number" id="edit-card-balance" step="0.01" placeholder="0.00">
+          <label>Balance (Frw)</label>
+          <input type="number" id="edit-card-balance" placeholder="0">
         </div>
         <div class="modal-input-group">
           <label>Status</label>
@@ -542,8 +550,8 @@
         </div>
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 1rem">
           <div class="modal-input-group">
-            <label>Price ($)</label>
-            <input type="number" id="edit-prod-price" step="0.01" placeholder="0.00">
+            <label>Price (Frw)</label>
+            <input type="number" id="edit-prod-price" placeholder="0">
           </div>
           <div class="modal-input-group">
             <label>Icon</label>

@@ -23,7 +23,7 @@ function renderSalespersonDashboard() {
               <div class="card-number">**** **** **** ****</div>
               <div class="card-details">
                 <div><span class="card-label">CARD HOLDER</span><span id="sales-card-holder" class="card-value">NO CARD</span></div>
-                <div><span class="card-label">BALANCE</span><span id="sales-card-balance" class="card-value">$0.00</span></div>
+                <div><span class="card-label">BALANCE</span><span id="sales-card-balance" class="card-value">Frw 0</span></div>
               </div>
             </div>
           </div>
@@ -56,7 +56,7 @@ function renderSalespersonDashboard() {
           <div id="sales-cart-items" class="cart-items"><div class="cart-empty"><span class="cart-empty-icon">🛒</span><p>Your cart is empty</p><p style="font-size:.75rem;color:var(--text-dim)">Click products to add them</p></div></div>
           <div id="sales-cart-summary" class="cart-summary" style="display:none">
             <div class="cart-summary-row"><span>Items</span><span id="sales-cart-total-items">0</span></div>
-            <div class="cart-summary-row cart-total-row"><span>Total</span><span id="sales-cart-total-price">$0.00</span></div>
+            <div class="cart-summary-row cart-total-row"><span>Total</span><span id="sales-cart-total-price">Frw 0</span></div>
           </div>
           <button class="btn-success btn-full" style="margin-top:.75rem" onclick="goToCheckout()">Proceed to Checkout →</button>
         </div>
@@ -72,8 +72,8 @@ function renderSalespersonDashboard() {
           <div id="checkout-items" class="cart-items"></div>
           <div id="checkout-summary" class="cart-summary" style="display:none">
             <div class="cart-summary-row"><span>Items</span><span id="checkout-total-items">0</span></div>
-            <div class="cart-summary-row"><span>Card Balance</span><span id="checkout-card-balance" style="color:var(--primary)">$0.00</span></div>
-            <div class="cart-summary-row cart-total-row"><span>Amount Due</span><span id="checkout-total-price">$0.00</span></div>
+            <div class="cart-summary-row"><span>Card Balance</span><span id="checkout-card-balance" style="color:var(--primary)">Frw 0</span></div>
+            <div class="cart-summary-row cart-total-row"><span>Amount Due</span><span id="checkout-total-price">Frw 0</span></div>
           </div>
         </div>
         <div class="glass-card">
@@ -135,8 +135,30 @@ function setupSalesEvents() {
 }
 
 
-function goToCheckout() {
+async function goToCheckout() {
   if (cart.length === 0) { showToast('Add products to cart first', 'error'); return; }
+  
+  // Reserve stock before proceeding
+  try {
+    const items = cart.map(i => ({ productId: i.product._id, qty: i.qty }));
+    const res = await fetch(`${BACKEND_URL}/api/products/reserve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items, sessionId })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      showToast(`Stock Lock Failed: ${data.error}`, 'error');
+      // Refresh products to show correct stock
+      loadSalesProducts();
+      return;
+    }
+    showToast('Stock reserved for 5 minutes', 'success');
+  } catch (err) {
+    showToast('Failed to lock stock. Please try again.', 'error');
+    return;
+  }
+
   // Navigate to checkout section
   document.querySelectorAll('#sidebar-nav .nav-item').forEach(n => n.classList.remove('active'));
   const checkoutNav = document.querySelector('[data-section="sales-checkout"]');
@@ -195,13 +217,13 @@ function renderSalesProducts() {
   if (!filtered.length) { grid.innerHTML = '<div class="no-data">No products in this category</div>'; return; }
   
   grid.innerHTML = filtered.map(p => {
-    const inCart = cart.find(i => i.product._id === p._id);
-    const isOutOfStock = p.stock <= 0;
-    const isLowStock = p.stock > 0 && p.stock < 10;
+    const available = p.availableStock !== undefined ? p.availableStock : p.stock;
+    const isOutOfStock = available <= 0;
+    const isLowStock = available > 0 && available < 10;
     
     let badge = '';
     if (isOutOfStock) badge = '<span class="product-badge danger">Out of Stock</span>';
-    else if (isLowStock) badge = `<span class="product-badge warning">Only ${p.stock} left</span>`;
+    else if (isLowStock) badge = `<span class="product-badge warning">Only ${available} left</span>`;
     else if (p.category && p.category.slug === 'rwandan') badge = '<span class="product-badge rwandan">🇷🇼</span>';
     
     const qtyControls = inCart ? `<div class="product-qty-controls" onclick="event.stopPropagation()"><button class="qty-btn" onclick="changeSalesQty('${p._id}',-1)">−</button><span class="cart-item-qty">${inCart.qty}</span><button class="qty-btn" onclick="changeSalesQty('${p._id}',1)">+</button></div>` : '<div class="product-add-hint">Click to add</div>';
@@ -211,8 +233,8 @@ function renderSalesProducts() {
         ${badge}
         <span class="product-icon">${p.icon}</span>
         <div class="product-name">${p.name}</div>
-        <div class="product-price">$${p.price.toFixed(2)}</div>
-        <div class="product-stock-small">${p.stock} in stock</div>
+        <div class="product-price">Frw ${p.price.toLocaleString()}</div>
+        <div class="product-stock-small">${available} available</div>
         ${isOutOfStock ? '' : qtyControls}
       </div>`;
   }).join('');
@@ -222,11 +244,12 @@ function renderSalesProducts() {
 function addToSalesCart(productId) {
   const product = allProducts.find(p => p._id === productId);
   if (!product) return;
-  if (product.stock <= 0) { showToast('Product is out of stock', 'error'); return; }
+  const available = product.availableStock !== undefined ? product.availableStock : product.stock;
+  if (available <= 0) { showToast('Product is out of stock', 'error'); return; }
 
   const existing = cart.find(i => i.product._id === productId);
   if (existing) {
-      if (existing.qty >= product.stock) { showToast('Cannot add more: Stock limit reached', 'error'); return; }
+      if (existing.qty >= available) { showToast('Cannot add more: Stock limit reached', 'error'); return; }
       existing.qty++;
   }
   else cart.push({ product, qty: 1 });
@@ -315,13 +338,13 @@ function updateSalesCartUI() {
     if (itemsEl) itemsEl.innerHTML = cart.map(i => `
       <div class="cart-item">
         <span class="cart-item-icon">${i.product.icon}</span>
-        <div class="cart-item-info"><div class="cart-item-name">${i.product.name}</div><div class="cart-item-price">$${i.product.price.toFixed(2)} each</div></div>
+        <div class="cart-item-info"><div class="cart-item-name">${i.product.name}</div><div class="cart-item-price">Frw ${i.product.price.toLocaleString()} each</div></div>
         <div class="cart-item-controls">
           <button class="qty-btn" onclick="changeSalesQty('${i.product._id}',-1)">−</button>
           <span class="cart-item-qty">${i.qty}</span>
           <button class="qty-btn" onclick="changeSalesQty('${i.product._id}',1)">+</button>
         </div>
-        <span class="cart-item-total">$${(i.product.price * i.qty).toFixed(2)}</span>
+        <span class="cart-item-total">Frw ${(i.product.price * i.qty).toLocaleString()}</span>
         <button class="cart-item-remove" onclick="removeFromSalesCart('${i.product._id}')">✕</button>
       </div>
     `).join('');
@@ -329,7 +352,7 @@ function updateSalesCartUI() {
     if (summaryEl) {
       summaryEl.style.display = 'block';
       document.getElementById('sales-cart-total-items').textContent = count;
-      document.getElementById('sales-cart-total-price').textContent = `$${total.toFixed(2)}`;
+      document.getElementById('sales-cart-total-price').textContent = `Frw ${total.toLocaleString()}`;
     }
   }
 }
@@ -345,16 +368,16 @@ function updateCheckoutView() {
   if (itemsEl) itemsEl.innerHTML = cart.map(i => `
     <div class="cart-item">
       <span class="cart-item-icon">${i.product.icon}</span>
-      <div class="cart-item-info"><div class="cart-item-name">${i.product.name}</div><div class="cart-item-price">$${i.product.price.toFixed(2)} × ${i.qty}</div></div>
-      <span class="cart-item-total">$${(i.product.price * i.qty).toFixed(2)}</span>
+      <div class="cart-item-info"><div class="cart-item-name">${i.product.name}</div><div class="cart-item-price">Frw ${i.product.price.toLocaleString()} × ${i.qty}</div></div>
+      <span class="cart-item-total">Frw ${(i.product.price * i.qty).toLocaleString()}</span>
     </div>
   `).join('');
 
   if (summaryEl) {
     summaryEl.style.display = 'block';
     document.getElementById('checkout-total-items').textContent = getCartCount();
-    document.getElementById('checkout-total-price').textContent = `$${getCartTotal().toFixed(2)}`;
-    if (currentCardData) document.getElementById('checkout-card-balance').textContent = `$${currentCardData.balance.toFixed(2)}`;
+    document.getElementById('checkout-total-price').textContent = `Frw ${getCartTotal().toLocaleString()}`;
+    if (currentCardData) document.getElementById('checkout-card-balance').textContent = `Frw ${currentCardData.balance.toLocaleString()}`;
   }
   updateCheckoutPayBtn();
 }
@@ -405,7 +428,7 @@ async function processCheckout() {
 
 
   try {
-    const body = { uid: lastScannedUid, amount: total, description: desc, items, processedBy: currentUser.username };
+    const body = { uid: lastScannedUid, amount: total, description: desc, items, processedBy: currentUser.username, sessionId, deviceId: scannerId };
     if (passcode) body.passcode = passcode;
 
     const res = await fetch(`${BACKEND_URL}/pay`, {
@@ -417,10 +440,10 @@ async function processCheckout() {
     if (data.success) {
       currentCardData = data.card;
       const salesCardBal = document.getElementById('sales-card-balance');
-      if (salesCardBal) salesCardBal.textContent = `$${data.card.balance.toFixed(2)}`;
+      if (salesCardBal) salesCardBal.textContent = `Frw ${data.card.balance.toLocaleString()}`;
 
-      showCheckoutMsg(`✅ Payment of $${data.transaction.amount.toFixed(2)} successful!`, 'success');
-      showToast(`Payment successful! Balance: $${data.card.balance.toFixed(2)}`, 'success');
+      showCheckoutMsg(`✅ Payment of Frw ${data.transaction.amount.toLocaleString()} successful!`, 'success');
+      showToast(`Payment successful! Balance: Frw ${data.card.balance.toLocaleString()}`, 'success');
 
       // Show receipt
       const transaction = {
@@ -515,7 +538,7 @@ function updateSalesCardInfo(data) {
     info.innerHTML = `
       <div class="data-row"><span class="data-label">UID</span><span class="data-value" style="font-family:monospace;font-size:.8rem">${data.uid}</span></div>
       <div class="data-row"><span class="data-label">Holder</span><span class="data-value">${data.holderName}</span></div>
-      <div class="data-row"><span class="data-label">Balance</span><span class="data-value" style="color:var(--primary);font-size:1.1rem">$${data.balance.toFixed(2)}</span></div>
+      <div class="data-row"><span class="data-label">Balance</span><span class="data-value" style="color:var(--primary);font-size:1.1rem">Frw ${data.balance.toLocaleString()}</span></div>
       <div class="data-row"><span class="data-label">Status</span><span class="data-value" style="color:var(--success)">${data.status || 'Active'}</span></div>
       <div class="data-row"><span class="data-label">Passcode</span><span class="data-value" style="color:${data.passcodeSet ? 'var(--success)' : 'var(--warning)'}">${data.passcodeSet ? '🔒 Protected' : '⚠️ Not Set'}</span></div>
       ${data.email ? `<div class="data-row"><span class="data-label">Email</span><span class="data-value">${data.email}</span></div>` : ''}

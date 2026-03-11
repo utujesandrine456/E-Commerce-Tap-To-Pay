@@ -15,6 +15,7 @@ const uint32_t WIFI_TIMEOUT_MS = 30000;
 const char* mqtt_server = "broker.benax.rw";
 const uint16_t MQTT_PORT = 1883;
 const char* team_id = "team_rdf";
+const char* device_id = "reader-1"; 
 
 // ----------------- MQTT Topics -----------------
 String topic_status   = "rfid/" + String(team_id) + "/card/status";
@@ -106,6 +107,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
     // Prepare response
     StaticJsonDocument<200> responseDoc;
     responseDoc["uid"] = uid;
+    responseDoc["deviceId"] = device_id;
     responseDoc["new_balance"] = newBalance;
     responseDoc["status"] = "success";
     responseDoc["type"] = "topup";
@@ -129,6 +131,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
     // Prepare balance update response
     StaticJsonDocument<256> responseDoc;
     responseDoc["uid"] = uid;
+    responseDoc["deviceId"] = device_id;
     responseDoc["new_balance"] = newBalance;
     responseDoc["deducted"] = deducted;
     responseDoc["status"] = "success";
@@ -179,6 +182,7 @@ void reconnect() {
 void publish_health() {
   StaticJsonDocument<256> doc;
   doc["status"] = "online";
+  doc["deviceId"] = device_id;
   doc["ip"] = WiFi.localIP().toString();
   doc["rssi"] = WiFi.RSSI();
   doc["free_heap"] = ESP.getFreeHeap();
@@ -257,6 +261,7 @@ void loop() {
         // Prepare JSON payload
         StaticJsonDocument<255> doc;
         doc["uid"] = uid;
+        doc["deviceId"] = device_id;
         doc["balance"] = currentBalance;
         doc["status"] = "detected";
         doc["present"] = true;
@@ -282,6 +287,7 @@ void loop() {
         // Publish card removed event
         StaticJsonDocument<200> doc;
         doc["uid"] = lastDetectedUID;
+        doc["deviceId"] = device_id;
         doc["status"] = "removed";
         doc["present"] = false;
         doc["ts"] = get_unix_time();

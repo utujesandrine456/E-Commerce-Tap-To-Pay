@@ -6,6 +6,7 @@ const { authenticateToken, requireRole } = require('../middlewares/authMiddlewar
 // Public/Salesperson routes
 router.get('/products', productController.getProducts);
 router.get('/categories', productController.getCategories);
+router.post('/products/reserve', productController.reserveProducts);
 
 // Agent restricted routes
 router.post('/products', authenticateToken, requireRole('agent'), productController.addProduct);

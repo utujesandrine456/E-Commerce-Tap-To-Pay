@@ -11,6 +11,15 @@ let selectedCategory = 'all';
 let currentTransaction = null;
 const GRACE_PERIOD = 15000;
 let gracePeriodTimer = null;
+let scannerId = localStorage.getItem('scannerId') || 'default';
+const sessionId = localStorage.getItem('sessionId') || Math.random().toString(36).substring(2, 11) + Date.now().toString(36);
+localStorage.setItem('sessionId', sessionId);
+
+function setScannerId(id) {
+    scannerId = id;
+    localStorage.setItem('scannerId', id);
+    if (typeof loadAgentData === 'function' && currentUser.role === 'agent') loadAgentData();
+}
 
 // Toast notifications
 function showToast(message, type = 'info') {
@@ -159,7 +168,7 @@ function showReceipt(transaction) {
                             <span class="item-name">${item.name}</span>
                             <span class="item-qty">x${qty}</span>
                         </div>
-                        <span class="item-price">$${itemTotal.toFixed(2)}</span>
+                        <span class="item-price">Frw ${itemTotal.toLocaleString()}</span>
                     </div>`;
         }).join('')}
             </div>
@@ -199,11 +208,11 @@ function showReceipt(transaction) {
       <div class="receipt-total-section">
         <div class="receipt-total-row">
             <span>TOTAL AMOUNT</span>
-            <span class="total-value">$${transaction.amount.toFixed(2)}</span>
+            <span class="total-value">Frw ${transaction.amount.toLocaleString()}</span>
         </div>
         <div class="receipt-balance-info">
-            <div class="balance-row"><span>Previous Balance</span><span>$${transaction.balanceBefore.toFixed(2)}</span></div>
-            <div class="balance-row"><span>Remaining Balance</span><span class="new-balance">$${transaction.balanceAfter.toFixed(2)}</span></div>
+            <div class="balance-row"><span>Previous Balance</span><span>Frw ${transaction.balanceBefore.toLocaleString()}</span></div>
+            <div class="balance-row"><span>Remaining Balance</span><span class="new-balance">Frw ${transaction.balanceAfter.toLocaleString()}</span></div>
         </div>
       </div>
 
@@ -318,7 +327,7 @@ function renderTxList(containerId, txs) {
             description = `${tx.holderName} - ${description}`;
         }
 
-        return `<div class="transaction-item ${cls}"><div class="transaction-icon">${icon}</div><div class="transaction-details"><div class="transaction-desc">${description}</div><div class="transaction-time">${d.toLocaleDateString()} ${d.toLocaleTimeString()}</div></div><div class="transaction-amount"><div class="amount-value ${color}">${sign}$${tx.amount.toFixed(2)}</div><div class="balance-after">Bal: $${tx.balanceAfter.toFixed(2)}</div></div></div>`;
+        return `<div class="transaction-item ${cls}"><div class="transaction-icon">${icon}</div><div class="transaction-details"><div class="transaction-desc">${description}</div><div class="transaction-time">${d.toLocaleDateString()} ${d.toLocaleTimeString()}</div></div><div class="transaction-amount"><div class="amount-value ${color}">${sign}Frw ${tx.amount.toLocaleString()}</div><div class="balance-after">Bal: Frw ${tx.balanceAfter.toLocaleString()}</div></div></div>`;
     }).join('');
 }
 

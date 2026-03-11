@@ -47,7 +47,7 @@ function renderAgentDashboard() {
           <div class="kpi-icon-wrapper green">💵</div>
           <div class="kpi-content">
             <div class="kpi-label">Total Revenue</div>
-            <div class="kpi-value" id="stat-total-revenue">$0.00</div>
+            <div class="kpi-value" id="stat-total-revenue">Frw 0</div>
           </div>
         </div>
         <div class="agent-kpi-card animate-slide-up" style="animation-delay: 0.3s">
@@ -61,7 +61,7 @@ function renderAgentDashboard() {
           <div class="kpi-icon-wrapper purple">💎</div>
           <div class="kpi-content">
             <div class="kpi-label">Top-Up Vol.</div>
-            <div class="kpi-value" id="stat-topup-vol">$0.00</div>
+            <div class="kpi-value" id="stat-topup-vol">Frw 0</div>
           </div>
         </div>
       </div>
@@ -152,7 +152,7 @@ function renderAgentDashboard() {
           <div class="kpi-icon-wrapper green">💸</div>
           <div class="kpi-content">
             <div class="kpi-label">Valuation</div>
-            <div id="stock-stat-value" class="kpi-value">$0.00</div>
+            <div id="stock-stat-value" class="kpi-value">Frw 0</div>
           </div>
         </div>
         <div class="agent-kpi-card animate-slide-up" style="animation-delay: 0.4s">
@@ -211,7 +211,7 @@ function renderAgentDashboard() {
             <div class="form-grid col-1">
               <div class="input-group"><label>Name</label><input type="text" id="prod-name" placeholder="Latte, Baguette..."></div>
               <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem">
-                <div class="input-group"><label>Price ($)</label><input type="number" id="prod-price" step="0.01" placeholder="0.00"></div>
+                <div class="input-group"><label>Price (Frw)</label><input type="number" id="prod-price" placeholder="0"></div>
                 <div class="input-group"><label>Stock</label><input type="number" id="prod-stock" value="100"></div>
               </div>
               <div class="input-group">
@@ -247,7 +247,7 @@ function renderAgentDashboard() {
               <div class="card-number">**** **** **** ****</div>
               <div class="card-details">
                 <div><span class="card-label">CARD HOLDER</span><span id="topup-card-holder" class="card-value">NO CARD</span></div>
-                <div><span class="card-label">BALANCE</span><span id="topup-card-balance" class="card-value">$0.00</span></div>
+                <div><span class="card-label">BALANCE</span><span id="topup-card-balance" class="card-value">Frw 0</span></div>
               </div>
             </div>
             <div id="topup-status-display" class="status-box">
@@ -263,13 +263,13 @@ function renderAgentDashboard() {
               <input type="text" id="topup-uid" readonly class="input-readonly" placeholder="Waiting for scan...">
             </div>
             <div class="input-group">
-              <label>Top-Up Amount ($)</label>
-              <input type="number" id="topup-amount" step="0.1" placeholder="Enter amount to add">
+              <label>Top-Up Amount (Frw)</label>
+              <input type="number" id="topup-amount" placeholder="Enter amount to add">
             </div>
             <div class="amount-presets-grid">
-              <button class="btn-secondary" onclick="presetTopUp(10)">+$10</button>
-              <button class="btn-secondary" onclick="presetTopUp(20)">+$20</button>
-              <button class="btn-secondary" onclick="presetTopUp(50)">+$50</button>
+              <button class="btn-secondary" onclick="presetTopUp(500)">+Frw 500</button>
+              <button class="btn-secondary" onclick="presetTopUp(1000)">+Frw 1,000</button>
+              <button class="btn-secondary" onclick="presetTopUp(5000)">+Frw 5,000</button>
             </div>
             <button id="topup-btn" class="btn-success btn-full" disabled onclick="processTopUp()">💎 Complete Deposit</button>
           </div>
@@ -315,7 +315,7 @@ function renderAgentDashboard() {
           <h3>🏷️ Registry Settings</h3>
           <div class="form-grid col-1">
             <div class="input-group"><label>New Card UID</label><input type="text" id="reg-uid" readonly class="input-readonly" placeholder="Waiting for scan..."></div>
-            <div class="input-group"><label>Initial Balance ($)</label><input type="number" id="reg-balance" value="0.00" step="0.5"></div>
+            <div class="input-group"><label>Initial Balance (Frw)</label><input type="number" id="reg-balance" value="0"></div>
             <button id="reg-btn" class="btn-primary btn-full" disabled onclick="processRegister()">✨ Register Cardholder</button>
           </div>
           <div class="agent-card-preview" style="margin-top:2rem; padding:1.5rem; height:auto">
@@ -324,7 +324,7 @@ function renderAgentDashboard() {
               <div class="card-number">**** **** **** ****</div>
               <div class="card-details">
                 <div><span class="card-label">NEW HOLDER</span><span id="reg-card-holder" class="card-value">WAITING...</span></div>
-                <div><span class="card-label">START BAL</span><span id="reg-card-balance" class="card-value">$0.00</span></div>
+                <div><span class="card-label">START BAL</span><span id="reg-card-balance" class="card-value">Frw 0</span></div>
               </div>
             </div>
           </div>
@@ -522,14 +522,14 @@ async function loadAgentStats() {
         };
         
         setVal('stat-total-cards', s.totalCards);
-        setVal('stat-total-revenue', `$${s.totalRevenue.toFixed(2)}`);
+        setVal('stat-total-revenue', `Frw ${s.totalRevenue.toLocaleString()}`);
         setVal('stat-today-tx', s.todayTransactions);
-        setVal('stat-topup-vol', `$${s.topupVolume.toFixed(2)}`);
+        setVal('stat-topup-vol', `Frw ${s.topupVolume.toLocaleString()}`);
         
         // Settings/Dashboard stats consistency
         setVal('st-cards', s.totalCards);
         setVal('st-tx', s.totalTransactions);
-        setVal('st-net', `$${s.netBalance.toFixed(2)}`);
+        setVal('st-net', `Frw ${s.netBalance.toLocaleString()}`);
         setVal('st-active', s.activeCards);
         
     } catch (err) { console.error('Stats error:', err); }
@@ -573,7 +573,7 @@ function renderAllCards() {
           </div>
         </td>
         <td data-label="UID"><code style="background:var(--bg-input); padding:4px 8px; border-radius:8px; font-size:0.75rem">${c.uid}</code></td>
-        <td data-label="Balance" style="font-weight:800; color:var(--primary)">$${c.balance.toFixed(2)}</td>
+        <td data-label="Balance" style="font-weight:800; color:var(--primary)">Frw ${c.balance.toLocaleString()}</td>
         <td data-label="Status"><span class="status-badge ${c.status || 'active'}">${c.status || 'active'}</span></td>
         <td data-label="Created" style="font-size:0.75rem; color:var(--text-dim)">${new Date(c.createdAt).toLocaleDateString()}</td>
         <td data-label="Actions">
@@ -643,7 +643,7 @@ async function loadStockData() {
         
         setVal('stock-stat-skus', skus);
         setVal('stock-stat-oos', lowStock);
-        setVal('stock-stat-value', `$${totalVal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`);
+        setVal('stock-stat-value', `Frw ${totalVal.toLocaleString()}`);
         setVal('stock-stat-cats', cats.length);
 
         // Visual feedback based on low stock
@@ -685,7 +685,7 @@ function renderProducts() {
                </div>
             </td>
             <td data-label="Category"><span class="status-badge active" style="background:var(--primary-light); color:var(--primary); font-size:0.7rem">${p.category ? p.category.name : 'Uncategorized'}</span></td>
-            <td data-label="Price" style="font-weight:800; color:var(--success)">$${p.price.toFixed(2)}</td>
+            <td data-label="Price" style="font-weight:800; color:var(--success)">Frw ${p.price.toLocaleString()}</td>
             <td data-label="Stock">
               <div class="stock-badge ${stockClass}">
                 ${p.stock} units
@@ -864,7 +864,7 @@ async function processTopUp() {
     try {
         const res = await fetch(`${BACKEND_URL}/topup`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ uid, amount, processedBy: currentUser.username })
+            body: JSON.stringify({ uid, amount, processedBy: currentUser.username, deviceId: scannerId })
         });
         const data = await res.json();
         if (data.success) {
@@ -899,7 +899,7 @@ async function processRegister() {
     try {
         const res = await fetch(`${BACKEND_URL}/topup`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ uid, amount: balance, holderName: name, passcode, email, phone, processedBy: currentUser.username })
+            body: JSON.stringify({ uid, amount: balance, holderName: name, passcode, email, phone, processedBy: currentUser.username, deviceId: scannerId })
         });
         const data = await res.json();
         if (data.success) {
@@ -1016,7 +1016,7 @@ function renderAllTransactions() {
             </td>
             <td><code style="font-size:0.75rem">${tx.uid}</code></td>
             <td style="font-weight:800; color:${isDebit ? 'var(--danger)' : 'var(--success)'}">
-              ${isDebit ? '-' : '+'}$${tx.amount.toFixed(2)}
+              ${isDebit ? '-' : '+'}Frw ${tx.amount.toLocaleString()}
             </td>
             <td><span class="status-badge" style="background:var(--bg-input); opacity:0.8; font-size:0.65rem">${tx.processedBy || 'System'}</span></td>
           </tr>

@@ -2,13 +2,14 @@ const mongoose = require('mongoose');
 const Card = require('../models/Card');
 const Transaction = require('../models/Transaction');
 const Product = require('../models/Product');
+const Reservation = require('../models/Reservation');
 const mqttService = require('../services/mqttService');
 
 const emailService = require('../services/emailService');
 const { verifyPasscode, generateReceiptId } = require('../helpers/cryptoHelpers');
 
 const topup = async (req, res) => {
-  const { uid, amount, holderName, passcode, email, phone } = req.body;
+  const { uid, amount, holderName, passcode, email, phone, deviceId } = req.body;
 
   if (!uid || amount === undefined) {
     return res.status(400).json({ error: 'UID and amount are required' });
@@ -56,7 +57,7 @@ const topup = async (req, res) => {
       amount: amount,
       balanceBefore: balanceBefore,
       balanceAfter: card.balance,
-      description: `Top-up of $${amount.toFixed(2)}`,
+      description: `Top-up of Frw ${amount.toLocaleString()}`,
       processedBy: req.body.processedBy || 'system',
       receiptId: receiptId
     });
@@ -67,7 +68,7 @@ const topup = async (req, res) => {
         .catch(emailErr => console.error('Background topup email failed:', emailErr));
     }
 
-    mqttService.publishTopup(uid, card.balance, card.holderName);
+    mqttService.publishTopup(uid, card.balance, card.holderName, deviceId);
 
     res.json({
       success: true,
@@ -95,7 +96,7 @@ const topup = async (req, res) => {
 };
 
 const pay = async (req, res) => {
-  const { uid, productId, amount, description, passcode, items, processedBy } = req.body;
+  const { uid, productId, amount, description, passcode, items, processedBy, sessionId, deviceId } = req.body;
 
   if (!uid || (!productId && amount === undefined)) {
     return res.status(400).json({ error: 'UID and product or amount are required' });
@@ -194,9 +195,14 @@ const pay = async (req, res) => {
 
         payAmount += product.price * qty;
         
-        // Deduct stock
+        // Deduct stock permanently
         product.stock -= qty;
         await product.save({ session });
+
+        // If a reservation exists for this session and product, clear it
+        if (sessionId) {
+          await Reservation.deleteMany({ sessionId, productId: prodId }).session(session);
+        }
         
         // Update item data for transaction record
         item.name = product.name;
@@ -250,7 +256,7 @@ const pay = async (req, res) => {
     await session.commitTransaction();
     session.endSession();
 
-    mqttService.publishPayment(uid, card.balance, payAmount, payDescription, 'success', card.holderName);
+    mqttService.publishPayment(uid, card.balance, payAmount, payDescription, 'success', card.holderName, deviceId);
 
     // Emit real-time update
     const io = req.app.get('io');

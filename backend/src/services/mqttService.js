@@ -46,30 +46,31 @@ const initMqtt = (io) => {
   return mqttClient;
 };
 
-const publishTopup = (uid, balance, holderName) => {
+const publishTopup = (uid, balance, holderName, deviceId) => {
   if (!mqttClient) return;
-  const payload = JSON.stringify({ uid, amount: balance });
+  const payload = JSON.stringify({ uid, amount: balance, deviceId });
   mqttClient.publish(Topics.TOPUP, payload, (err) => {
     if (err) {
       console.error('Failed to publish topup:', err);
     } else {
-      console.log(`Published topup for ${uid} (${holderName}): ${balance}`);
+      console.log(`Published topup for ${uid} on device ${deviceId || 'global'}: ${balance}`);
     }
   });
 };
 
-const publishPayment = (uid, balance, deducted, description, status, holderName) => {
+const publishPayment = (uid, balance, deducted, description, status, holderName, deviceId) => {
   if (!mqttClient) return;
   const payload = JSON.stringify({
     uid,
     amount: balance,
     deducted,
     description,
-    status
+    status,
+    deviceId
   });
   mqttClient.publish(Topics.PAYMENT, payload, (err) => {
     if (err) console.error('Failed to publish payment:', err);
-    console.log(`Published payment for ${uid} (${holderName}): -$${deducted.toFixed(2)}, balance: $${balance.toFixed(2)}`);
+    console.log(`Published payment for ${uid} on device ${deviceId || 'global'}: -$${deducted.toFixed(2)}, balance: $${balance.toFixed(2)}`);
   });
 };
 
