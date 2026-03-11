@@ -99,6 +99,26 @@ function setupPasscodeDigits(selector) {
 document.addEventListener('DOMContentLoaded', () => {
     setupPasscodeDigits('#passcode-modal .passcode-digit');
 
+    // Mobile menu toggle
+    const menuToggle = document.getElementById('menu-toggle');
+    const sidebar = document.getElementById('sidebar');
+    if (menuToggle && sidebar) {
+        menuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('open');
+            menuToggle.textContent = sidebar.classList.contains('open') ? '✕' : '☰';
+        });
+    }
+
+    // Close sidebar when clicking a nav item on mobile
+    document.addEventListener('click', (e) => {
+        if (window.innerWidth <= 1024 && sidebar && sidebar.classList.contains('open')) {
+            if (e.target.closest('.nav-item') || (!e.target.closest('.sidebar') && !e.target.closest('.menu-toggle'))) {
+                sidebar.classList.remove('open');
+                if (menuToggle) menuToggle.textContent = '☰';
+            }
+        }
+    });
+
     document.getElementById('passcode-confirm-btn').addEventListener('click', () => {
         const p = getPasscodeValue();
         if (p.length !== 6) { showPasscodeError('Please enter all 6 digits'); return; }

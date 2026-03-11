@@ -16,7 +16,9 @@ const authRoutes = require('./src/routes/authRoutes');
 const cardRoutes = require('./src/routes/cardRoutes');
 const transactionRoutes = require('./src/routes/transactionRoutes');
 const systemRoutes = require('./src/routes/systemRoutes');
+const productRoutes = require('./src/routes/productRoutes');
 const systemController = require('./src/controllers/systemController');
+
 const transactionController = require('./src/controllers/transactionController');
 const { transactionLimiter } = require('./src/middlewares/rateLimiter');
 
@@ -62,6 +64,8 @@ app.get('/transactions', transactionController.getTransactions);
 
 // System Routes
 app.use('/', systemRoutes);
+app.use('/api', productRoutes);
+
 
 // Extra route
 app.post('/send-receipt', async (req, res) => {

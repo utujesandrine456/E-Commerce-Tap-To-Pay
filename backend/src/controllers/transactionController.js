@@ -1,8 +1,9 @@
 const mongoose = require('mongoose');
 const Card = require('../models/Card');
 const Transaction = require('../models/Transaction');
-const PRODUCTS = require('../config/products');
+const Product = require('../models/Product');
 const mqttService = require('../services/mqttService');
+
 const emailService = require('../services/emailService');
 const { verifyPasscode, generateReceiptId } = require('../helpers/cryptoHelpers');
 
@@ -140,16 +141,71 @@ const pay = async (req, res) => {
 
     let payAmount = amount;
     let payDescription = description || 'Payment';
+    let transactionItems = items || [];
 
+    // Handle single product ID (legacy or simple payment)
     if (productId) {
-      const product = PRODUCTS.find(p => p.id === productId);
+      const product = await Product.findById(productId).session(session);
       if (!product) {
         await session.abortTransaction();
         session.endSession();
         return res.status(400).json({ error: 'Invalid product ID' });
       }
+      
+      if (product.stock < 1) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(400).json({ error: `Product ${product.name} is out of stock` });
+      }
+
       payAmount = product.price;
       payDescription = `Purchase: ${product.name}`;
+      
+      // Deduct stock
+      product.stock -= 1;
+      await product.save({ session });
+      
+      transactionItems = [{
+        productId: product._id,
+        name: product.name,
+        price: product.price,
+        quantity: 1
+      }];
+    } 
+    // Handle multiple items from cart
+    else if (items && items.length > 0) {
+      payAmount = 0;
+      for (const item of items) {
+        const prodId = item.id || item.productId;
+        const product = await Product.findById(prodId).session(session);
+        
+        if (!product) {
+          await session.abortTransaction();
+          session.endSession();
+          return res.status(400).json({ error: `Product not found: ${prodId}` });
+        }
+
+        const qty = item.quantity || 1;
+        if (product.stock < qty) {
+          await session.abortTransaction();
+          session.endSession();
+          return res.status(400).json({ error: `Insufficient stock for ${product.name}. Available: ${product.stock}` });
+        }
+
+        payAmount += product.price * qty;
+        
+        // Deduct stock
+        product.stock -= qty;
+        await product.save({ session });
+        
+        // Update item data for transaction record
+        item.name = product.name;
+        item.price = product.price;
+      }
+      
+      if (!description) {
+        payDescription = `Purchase: ${items.length} items`;
+      }
     }
 
     if (!payAmount || payAmount <= 0) {

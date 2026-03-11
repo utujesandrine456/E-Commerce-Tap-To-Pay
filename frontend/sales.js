@@ -46,15 +46,12 @@ function renderSalespersonDashboard() {
           </div>
           <div class="category-filter" id="category-filter">
             <button class="category-btn active" data-category="all">All</button>
-            <button class="category-btn" data-category="food">Food</button>
-            <button class="category-btn" data-category="rwandan">🇷🇼 Rwandan</button>
-            <button class="category-btn" data-category="drinks">Drinks</button>
-            <button class="category-btn" data-category="domains">Domains</button>
-            <button class="category-btn" data-category="services">Services</button>
+            <!-- Categories will be loaded here -->
           </div>
+
           <div class="product-grid" id="product-grid"></div>
         </div>
-        <div class="glass-card">
+        <div class="glass-card marketplace-sidebar">
           <h3>🛍️ Shopping Cart</h3>
           <div id="sales-cart-items" class="cart-items"><div class="cart-empty"><span class="cart-empty-icon">🛒</span><p>Your cart is empty</p><p style="font-size:.75rem;color:var(--text-dim)">Click products to add them</p></div></div>
           <div id="sales-cart-summary" class="cart-summary" style="display:none">
@@ -133,19 +130,10 @@ function setupSalesNavigation() {
 }
 
 function setupSalesEvents() {
-  // Category filter
-  document.querySelectorAll('#category-filter .category-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('#category-filter .category-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      selectedCategory = btn.dataset.category;
-      renderSalesProducts();
-    });
-  });
-
   // Checkout passcode
   setupPasscodeDigits('.checkout-pass');
 }
+
 
 function goToCheckout() {
   if (cart.length === 0) { showToast('Add products to cart first', 'error'); return; }
@@ -160,56 +148,110 @@ function goToCheckout() {
 
 async function loadSalesProducts() {
   try {
-    const res = await fetch(`${BACKEND_URL}/products`);
-    if (res.ok) allProducts = await res.json();
+    const [prodRes, catRes] = await Promise.all([
+      fetch(`${BACKEND_URL}/api/products`),
+      fetch(`${BACKEND_URL}/api/categories`)
+    ]);
+    
+    if (prodRes.ok) allProducts = await prodRes.json();
+    if (catRes.ok) {
+        const cats = await catRes.json();
+        renderCategoryFilters(cats);
+    }
   } catch (err) {
-    allProducts = [
-      { id: 'coffee', name: 'Coffee', price: 2.50, icon: '☕', category: 'food' },
-      { id: 'sandwich', name: 'Sandwich', price: 5.00, icon: '🥪', category: 'food' },
-      { id: 'water', name: 'Water', price: 1.00, icon: '💧', category: 'food' }
-    ];
+    console.error('Failed to load marketplace data:', err);
   }
   applyPendingCart();
   renderSalesProducts();
 }
 
+function renderCategoryFilters(categories) {
+    const filter = document.getElementById('category-filter');
+    if (!filter) return;
+    
+    filter.innerHTML = `<button class="category-btn ${selectedCategory === 'all' ? 'active' : ''}" data-category="all">All</button>` + 
+        categories.map(c => `<button class="category-btn ${selectedCategory === c.slug ? 'active' : ''}" data-category="${c.slug}">${c.icon} ${c.name}</button>`).join('');
+        
+    // Re-attach events
+    filter.querySelectorAll('.category-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            filter.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            selectedCategory = btn.dataset.category;
+            renderSalesProducts();
+        });
+    });
+}
+
+
 function renderSalesProducts() {
   const grid = document.getElementById('product-grid');
   if (!grid) return;
-  const filtered = selectedCategory === 'all' ? allProducts : allProducts.filter(p => p.category === selectedCategory);
+  
+  const filtered = selectedCategory === 'all' 
+    ? allProducts 
+    : allProducts.filter(p => p.category && p.category.slug === selectedCategory);
+    
   if (!filtered.length) { grid.innerHTML = '<div class="no-data">No products in this category</div>'; return; }
+  
   grid.innerHTML = filtered.map(p => {
-    const inCart = cart.find(i => i.product.id === p.id);
+    const inCart = cart.find(i => i.product._id === p._id);
+    const isOutOfStock = p.stock <= 0;
+    const isLowStock = p.stock > 0 && p.stock < 10;
+    
     let badge = '';
-    if (p.category === 'domains') badge = '<span class="product-badge domain">Domain</span>';
-    else if (p.category === 'services') badge = '<span class="product-badge service">Service</span>';
-    else if (p.category === 'rwandan') badge = '<span class="product-badge rwandan">🇷🇼</span>';
-    const qtyControls = inCart ? `<div class="product-qty-controls" onclick="event.stopPropagation()"><button class="qty-btn" onclick="changeSalesQty('${p.id}',-1)">−</button><span class="cart-item-qty">${inCart.qty}</span><button class="qty-btn" onclick="changeSalesQty('${p.id}',1)">+</button></div>` : '<div class="product-add-hint">Click to add</div>';
-    return `<div class="product-card${inCart ? ' in-cart' : ''}" onclick="addToSalesCart('${p.id}')">${badge}<span class="product-icon">${p.icon}</span><div class="product-name">${p.name}</div><div class="product-price">$${p.price.toFixed(2)}</div>${qtyControls}</div>`;
+    if (isOutOfStock) badge = '<span class="product-badge danger">Out of Stock</span>';
+    else if (isLowStock) badge = `<span class="product-badge warning">Only ${p.stock} left</span>`;
+    else if (p.category && p.category.slug === 'rwandan') badge = '<span class="product-badge rwandan">🇷🇼</span>';
+    
+    const qtyControls = inCart ? `<div class="product-qty-controls" onclick="event.stopPropagation()"><button class="qty-btn" onclick="changeSalesQty('${p._id}',-1)">−</button><span class="cart-item-qty">${inCart.qty}</span><button class="qty-btn" onclick="changeSalesQty('${p._id}',1)">+</button></div>` : '<div class="product-add-hint">Click to add</div>';
+    
+    return `
+      <div class="product-card${inCart ? ' in-cart' : ''}${isOutOfStock ? ' disabled' : ''}" onclick="${isOutOfStock ? '' : `addToSalesCart('${p._id}')`}">
+        ${badge}
+        <span class="product-icon">${p.icon}</span>
+        <div class="product-name">${p.name}</div>
+        <div class="product-price">$${p.price.toFixed(2)}</div>
+        <div class="product-stock-small">${p.stock} in stock</div>
+        ${isOutOfStock ? '' : qtyControls}
+      </div>`;
   }).join('');
 }
 
+
 function addToSalesCart(productId) {
-  const product = allProducts.find(p => p.id === productId);
+  const product = allProducts.find(p => p._id === productId);
   if (!product) return;
-  const existing = cart.find(i => i.product.id === productId);
-  if (existing) existing.qty++;
+  if (product.stock <= 0) { showToast('Product is out of stock', 'error'); return; }
+
+  const existing = cart.find(i => i.product._id === productId);
+  if (existing) {
+      if (existing.qty >= product.stock) { showToast('Cannot add more: Stock limit reached', 'error'); return; }
+      existing.qty++;
+  }
   else cart.push({ product, qty: 1 });
+  
   saveCartToStorage();
   updateSalesCartUI();
   renderSalesProducts();
 }
 
 function removeFromSalesCart(productId) {
-  cart = cart.filter(i => i.product.id !== productId);
+  cart = cart.filter(i => i.product._id !== productId);
   saveCartToStorage();
   updateSalesCartUI();
   renderSalesProducts();
 }
 
 function changeSalesQty(productId, delta) {
-  const item = cart.find(i => i.product.id === productId);
+  const item = cart.find(i => i.product._id === productId);
   if (!item) return;
+  
+  if (delta > 0 && item.qty >= item.product.stock) {
+      showToast('Cannot add more: Stock limit reached', 'error');
+      return;
+  }
+  
   item.qty += delta;
   if (item.qty <= 0) { removeFromSalesCart(productId); return; }
   saveCartToStorage();
@@ -217,13 +259,15 @@ function changeSalesQty(productId, delta) {
   renderSalesProducts();
 }
 
+
 // ===== CART PERSISTENCE =====
 function saveCartToStorage() {
   try {
-    const data = cart.map(i => ({ productId: i.product.id, qty: i.qty }));
+    const data = cart.map(i => ({ productId: i.product._id, qty: i.qty }));
     localStorage.setItem('tapandpay_cart', JSON.stringify(data));
   } catch (e) { console.warn('Failed to save cart:', e); }
 }
+
 
 function loadCartFromStorage() {
   try {
@@ -238,12 +282,13 @@ function applyPendingCart() {
   if (!window._pendingCart || !allProducts.length) return;
   cart = [];
   window._pendingCart.forEach(item => {
-    const product = allProducts.find(p => p.id === item.productId);
+    const product = allProducts.find(p => p._id === item.productId);
     if (product) cart.push({ product, qty: item.qty });
   });
   window._pendingCart = null;
   updateSalesCartUI();
 }
+
 
 // Make functions globally accessible
 window.addToSalesCart = addToSalesCart;
@@ -272,14 +317,15 @@ function updateSalesCartUI() {
         <span class="cart-item-icon">${i.product.icon}</span>
         <div class="cart-item-info"><div class="cart-item-name">${i.product.name}</div><div class="cart-item-price">$${i.product.price.toFixed(2)} each</div></div>
         <div class="cart-item-controls">
-          <button class="qty-btn" onclick="changeSalesQty('${i.product.id}',-1)">−</button>
+          <button class="qty-btn" onclick="changeSalesQty('${i.product._id}',-1)">−</button>
           <span class="cart-item-qty">${i.qty}</span>
-          <button class="qty-btn" onclick="changeSalesQty('${i.product.id}',1)">+</button>
+          <button class="qty-btn" onclick="changeSalesQty('${i.product._id}',1)">+</button>
         </div>
         <span class="cart-item-total">$${(i.product.price * i.qty).toFixed(2)}</span>
-        <button class="cart-item-remove" onclick="removeFromSalesCart('${i.product.id}')">✕</button>
+        <button class="cart-item-remove" onclick="removeFromSalesCart('${i.product._id}')">✕</button>
       </div>
     `).join('');
+
     if (summaryEl) {
       summaryEl.style.display = 'block';
       document.getElementById('sales-cart-total-items').textContent = count;
@@ -303,6 +349,7 @@ function updateCheckoutView() {
       <span class="cart-item-total">$${(i.product.price * i.qty).toFixed(2)}</span>
     </div>
   `).join('');
+
   if (summaryEl) {
     summaryEl.style.display = 'block';
     document.getElementById('checkout-total-items').textContent = getCartCount();
@@ -353,8 +400,9 @@ async function processCheckout() {
   const btn = document.getElementById('checkout-pay-btn');
   btn.disabled = true; btn.textContent = '⏳ Processing...';
 
-  const items = cart.map(i => ({ id: i.product.id, name: i.product.name, price: i.product.price, qty: i.qty }));
+  const items = cart.map(i => ({ id: i.product._id, name: i.product.name, price: i.product.price, qty: i.qty }));
   const desc = `Purchase: ${cart.map(i => i.qty > 1 ? `${i.product.name} x${i.qty}` : i.product.name).join(', ')}`;
+
 
   try {
     const body = { uid: lastScannedUid, amount: total, description: desc, items, processedBy: currentUser.username };
@@ -392,7 +440,7 @@ async function processCheckout() {
       saveCartToStorage();
       localStorage.removeItem('tapandpay_cart');
       updateSalesCartUI();
-      renderSalesProducts();
+      loadSalesProducts(); // Refresh stock counts from server
       updateCheckoutView();
       document.querySelectorAll('.checkout-pass').forEach(i => i.value = '');
       loadSalesHistory();
