@@ -11,6 +11,19 @@ function renderSalespersonDashboard() {
 
   const main = document.getElementById('main-content');
   main.innerHTML = `
+    <!-- Executive Header (Sales) -->
+    <div class="premium-dashboard-header animate-slide-up">
+      <div class="welcome-text">
+        <p class="section-subtitle">Sales Representative Terminal</p>
+        <h1 id="sales-welcome-name">Welcome back, ${currentUser.fullName}</h1>
+      </div>
+      <div class="header-actions">
+        <button class="btn-primary" onclick="refreshSalesDashboard()" style="display:flex;align-items:center;gap:0.5rem">
+          <span>🔄</span> Refresh Terminal
+        </button>
+      </div>
+    </div>
+
     <!-- Card Details Section -->
     <div id="section-sales-card" class="page-section active-section">
       <div class="section-header"><h2 class="section-title">💳 Card Details</h2><p class="section-subtitle">Scan an RFID card to view holder information and balance</p></div>
@@ -113,7 +126,15 @@ function renderSalespersonDashboard() {
   setupSalesNavigation();
   setupSalesEvents();
   loadCartFromStorage();
+  refreshSalesDashboard();
+}
+
+function refreshSalesDashboard() {
   loadSalesProducts();
+  // If a card is scanned, refresh its details too
+  if (lastScannedUid) {
+    lookupCard(lastScannedUid);
+  }
 }
 
 function setupSalesNavigation() {
@@ -124,7 +145,11 @@ function setupSalesNavigation() {
       item.classList.add('active');
       document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active-section'));
       const target = document.getElementById(`section-${item.dataset.section}`);
-      if (target) { target.classList.add('active-section'); target.style.animation = 'none'; target.offsetHeight; target.style.animation = ''; }
+      if (target) { 
+        target.classList.add('active-section'); 
+        target.style.animation = 'none'; target.offsetHeight; target.style.animation = ''; 
+        refreshSalesDashboard();
+      }
     });
   });
 }

@@ -443,6 +443,8 @@ function setupAgentNavigation() {
       const target = document.getElementById(`section-${sectionId}`);
       if (target) {
         target.classList.add('active-section');
+        // Auto-refresh when switching sections to ensure live data
+        refreshAgentDashboard();
         // Re-trigger animations
         target.querySelectorAll('.animate-slide-up').forEach(el => {
           el.style.animation = 'none';
@@ -464,6 +466,9 @@ function refreshAgentDashboard() {
     loadStockData();
     updateSysStatus('online'); // Assume online if we can refresh
     renderMockChart();
+    if (typeof lookupCard === 'function' && lastScannedUid) {
+        lookupCard(lastScannedUid);
+    }
 }
 
 function updateSysStatus(state) {
