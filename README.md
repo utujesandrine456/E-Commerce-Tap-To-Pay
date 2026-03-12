@@ -10,15 +10,14 @@ A complete RFID-based payment system with real-time card management, secure pass
 
 #  **[VIEW LIVE APPLICATION ](http://157.173.101.159:9208)**
 
-## **Frontend:** http://157.173.101.159:9208
-
-## **Backend API:** http://157.173.101.159:8208
+## **Frontend:** http://157.173.101.159:9208/
+## **Backend API:** https://tapandpay-backend.onrender.com
 
 <br>
 
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-Online-success?style=for-the-badge&logo=google-chrome&logoColor=white&scale=2)](http://157.173.101.159:9208)
-[![Backend API](https://img.shields.io/badge/Backend%20API-Running-blue?style=for-the-badge&logo=fastapi&logoColor=white&scale=2)](http://157.173.101.159:8208)
-[![Status](https://img.shields.io/badge/Status-Deployed-brightgreen?style=for-the-badge&scale=2)](http://157.173.101.159:9208)
+[![Backend API](https://img.shields.io/badge/Backend%20API-Running-blue?style=for-the-badge&logo=fastapi&logoColor=white&scale=2)](https://tapandpay-backend.onrender.com)
+[![Status](https://img.shields.io/badge/Status-Deployed-brightgreen?style=for-the-badge&scale=2)](https://tapandpay-backend.onrender.com)
 
 <br>
 
@@ -80,11 +79,9 @@ A complete RFID-based payment system with real-time card management, secure pass
 ## Team Information
 
 - **Team ID**: `team_rdf`
-- **Live Application**: http://157.173.101.159:9208
-- **VPS Server**: 157.173.101.159
-- **Backend Port**: 8208
-- **Frontend Port**: 9208
-- **MQTT Broker**: 157.173.101.159:1883
+- **Live Application**: https://tapandpay-backend.onrender.com
+- **Deployment**: Render (Backend & Frontend)
+- **MQTT Broker**: 157.173.101.159:1883 (Shared VPS)
 
 ## 🔐 Authentication System
 
@@ -266,8 +263,8 @@ scp -r tap-to-pay root@157.173.101.159:/root/
 
 3. **Access online:**
 
-- Frontend: http://157.173.101.159:9208
-- Backend: http://157.173.101.159:8208
+- **Web App**: https://tapandpay-backend.onrender.com
+- **API URL**: https://tapandpay-backend.onrender.com
 
 ## 📡 MQTT Topics
 
@@ -533,7 +530,7 @@ PORT=8208
 The frontend automatically detects the environment:
 
 - **Local**: Uses `localhost:8208`
-- **Production**: Uses `157.173.101.159:8208`
+- **Production**: Uses `tapandpay-backend.onrender.com`
 
 No manual configuration needed!
 
