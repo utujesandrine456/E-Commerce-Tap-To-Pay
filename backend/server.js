@@ -66,6 +66,11 @@ app.get('/transactions', transactionController.getTransactions);
 app.use('/', systemRoutes);
 app.use('/api', productRoutes);
 
+// Health Route
+app.use('/health',(req,res)=>{
+  res.status(200).json({message:"OK"})
+})
+
 
 // Extra route
 app.post('/send-receipt', async (req, res) => {
@@ -100,5 +105,5 @@ io.on('connection', (socket) => {
 // START SERVER
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Backend server running on http://0.0.0.0:${PORT}`);
-  console.log(`Access from: http://157.173.101.159:${PORT}`);
+  console.log(`Live at: https://tapandpay-backend.onrender.com`);
 });
