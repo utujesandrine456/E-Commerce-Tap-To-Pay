@@ -2,6 +2,6 @@
  * App Configuration
  */
 
-// Use the VPS IP for shared backend or manual local IP if needed on a real device
-export const API_BASE_URL = 'http://157.173.101.159:8208';
-export const SOCKET_URL = 'http://157.173.101.159:8208';
+// Use the Render URL for backend
+export const API_BASE_URL = 'https://tapandpay-backend.onrender.com';
+export const SOCKET_URL = 'https://tapandpay-backend.onrender.com';
