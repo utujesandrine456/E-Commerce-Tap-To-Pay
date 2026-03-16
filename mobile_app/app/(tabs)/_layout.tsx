@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
 import { Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
@@ -11,8 +12,13 @@ export default function TabLayout() {
   const colorScheme = useColorScheme() ?? 'light';
   const theme = Colors[colorScheme];
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
 
   const isAgent = user?.role === 'agent';
+
+  // Make bottom bar responsive to device navigation bar
+  const paddingBottom = Math.max(insets.bottom, Platform.OS === 'ios' ? 20 : 12);
+  const tabHeight = 60 + paddingBottom;
 
   return (
     <Tabs
@@ -25,8 +31,8 @@ export default function TabLayout() {
           backgroundColor: theme.card,
           borderTopWidth: 1,
           borderTopColor: theme.border,
-          height: Platform.OS === 'ios' ? 88 : 68,
-          paddingBottom: Platform.OS === 'ios' ? 28 : 12,
+          height: tabHeight,
+          paddingBottom: paddingBottom,
           paddingTop: 8,
           position: 'absolute',
           bottom: 0,
