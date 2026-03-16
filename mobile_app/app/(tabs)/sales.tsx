@@ -465,34 +465,39 @@ export default function SalesScreen() {
                     {cart.map(item => (
                         <View key={item.product._id} style={styles.cartReviewRow}>
                             <Text style={styles.cartReviewIcon}>{item.product.icon}</Text>
+                            
                             <View style={{ flex: 1 }}>
-                                <Text style={[styles.cartReviewName, { color: theme.text }]} numberOfLines={1}>{item.product.name}</Text>
-                                <Text style={{ color: theme.muted, fontSize: 13, fontWeight: '600' }}>Frw {item.product.price.toLocaleString()} x {item.qty}</Text>
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                                    <Text style={[styles.cartReviewName, { color: theme.text, flex: 1 }]} numberOfLines={1}>{item.product.name}</Text>
+                                    <Text style={[styles.cartReviewTotal, { color: theme.text, marginLeft: 12 }]}>Frw {(item.product.price * item.qty).toLocaleString()}</Text>
+                                </View>
+                                
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <Text style={{ color: theme.muted, fontSize: 13, fontWeight: '600' }}>Frw {item.product.price.toLocaleString()} each</Text>
+                                    
+                                    <View style={[styles.cartQtyControls, { backgroundColor: theme.primary + '15' }]}>
+                                        <TouchableOpacity 
+                                            style={[styles.qtyBtn, { backgroundColor: theme.card }]} 
+                                            onPress={() => {
+                                                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                                updateQty(item.product._id, -1);
+                                            }}
+                                        >
+                                            <Ionicons name="remove" size={18} color={theme.text} />
+                                        </TouchableOpacity>
+                                        <Text style={[styles.qtyText, { color: theme.text }]}>{item.qty}</Text>
+                                        <TouchableOpacity 
+                                            style={[styles.qtyBtn, { backgroundColor: theme.card }]} 
+                                            onPress={() => {
+                                                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                                updateQty(item.product._id, 1);
+                                            }}
+                                        >
+                                            <Ionicons name="add" size={18} color={theme.text} />
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
                             </View>
-                            
-                            <View style={styles.cartQtyControls}>
-                                <TouchableOpacity 
-                                    style={styles.qtyBtn} 
-                                    onPress={() => {
-                                        if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                        updateQty(item.product._id, -1);
-                                    }}
-                                >
-                                    <Ionicons name="remove" size={18} color={theme.text} />
-                                </TouchableOpacity>
-                                <Text style={[styles.qtyText, { color: theme.text }]}>{item.qty}</Text>
-                                <TouchableOpacity 
-                                    style={styles.qtyBtn} 
-                                    onPress={() => {
-                                        if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                        updateQty(item.product._id, 1);
-                                    }}
-                                >
-                                    <Ionicons name="add" size={18} color={theme.text} />
-                                </TouchableOpacity>
-                            </View>
-                            
-                            <Text style={[styles.cartReviewTotal, { color: theme.text, marginLeft: 20 }]}>Frw {(item.product.price * item.qty).toLocaleString()}</Text>
                         </View>
                     ))}
 
